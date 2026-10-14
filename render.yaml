@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: officialum1-hub
+    runtime: docker
+    plan: starter
+    region: oregon
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PORT
+        value: "8088"

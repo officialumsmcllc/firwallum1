@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFFICIALUM1 — Multi-Device Gateway & Security Hub</title>
+  <meta name="description" content="Enterprise-grade multi-device proxy gateway, DNS firewall, and traffic monitoring dashboard for secure Wi-Fi network management.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+
+  <!-- System Monitor Bar -->
+  <div class="sys-monitor-bar" id="sysMonitorBar">
+    <div class="sys-item">
+      <span class="sys-label">Uptime:</span>
+      <span class="sys-val" id="sysUptime">0h 0m 0s</span>
+    </div>
+    <div class="sys-item">
+      <span class="sys-label">Total Traffic:</span>
+      <span class="sys-val" id="sysTotalTraffic">0 MB</span>
+    </div>
+    <div class="sys-item">
+      <span class="sys-label">Connections:</span>
+      <span class="sys-val" id="sysConnections">0 active</span>
+    </div>
+    <div class="sys-item">
+      <span class="sys-label">DNS Queries:</span>
+      <span class="sys-val" id="sysDnsQueries">0 blocked</span>
+    </div>
+    <div class="sys-item">
+      <span class="sys-label">Gateway:</span>
+      <span class="sys-val" id="sysGatewayStatus">●&nbsp;Online</span>
+    </div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">OFFICIALUM1</div>
+          <div class="brand-subtitle">Multi-Device Security Gateway</div>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="status-pill online">
+          <span class="status-dot"></span>
+          <span>HUB ONLINE</span>
+        </div>
+        <div class="uptime-pill" id="uptimePill">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <span id="uptimeDisplay">0h 0m</span>
+        </div>
+        <div class="ip-pill" id="copyHubIpBtn" title="Click to copy Hub IP">
+          <span class="label">HUB IP:</span>
+          <span class="mono" id="hubIpDisplay">192.168.100.158</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </div>
+        <button class="btn btn-secondary" id="openGuideBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          How to Connect PC
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- Overview Metrics Row -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">DEDICATED PORTS</div>
+        <div class="stat-val" id="statPortsCount">10 Ports</div>
+        <div class="stat-sub">Ports 8101 &ndash; 8110</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">ACTIVE DEVICES</div>
+        <div class="stat-val" id="statActiveCount">0 Active</div>
+        <div class="stat-sub" id="statActiveSub">Live client tunnels</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">CONFIGURED PROXIES</div>
+        <div class="stat-val" id="statProxiesCount">0 Available</div>
+        <div class="stat-sub">Dedicated exit tunnels</div>
+      </div>
+
+      <div class="stat-card stat-action">
+        <div class="stat-header-flex">
+          <div>
+            <div class="stat-label">PROXY GATEWAY</div>
+            <div class="stat-val" id="statProxyGatewayText">Active</div>
+          </div>
+          <button class="switch-toggle" id="toggleProxyGatewayBtn" title="Toggle Proxy Gateway (Turn ON if proxy needed, OFF for Direct Full-Speed Wi-Fi)">
+            <span class="switch-slider"></span>
+          </button>
+        </div>
+        <div class="stat-sub" id="statProxyGatewaySub">Ports 8101-8110 Routing</div>
+      </div>
+
+      <div class="stat-card stat-action">
+        <div class="stat-header-flex">
+          <div>
+            <div class="stat-label">DNS AD-BLOCKER</div>
+            <div class="stat-val" id="statDnsBlockedText">Active</div>
+          </div>
+          <button class="switch-toggle" id="toggleDnsBtn" title="Toggle DNS Ad-Blocker">
+            <span class="switch-slider"></span>
+          </button>
+        </div>
+        <div class="stat-sub" id="statDnsCount">250,000+ threat domains blocked</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" data-tab="portsTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        10 Device Ports (8101 &ndash; 8110)
+      </button>
+      <button class="tab-btn" data-tab="wifiTab" id="wifiTabBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        Wi-Fi Devices
+        <span id="wifiDeviceCountBadge" class="badge" style="margin-left: 4px; background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 10px; padding: 2px 8px; border-radius: 9999px;">...</span>
+      </button>
+      <button class="tab-btn" data-tab="proxiesTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Proxy Manager
+      </button>
+    </div>
+
+    <!-- TAB 1: PORTS GRID -->
+    <section id="portsTab" class="tab-content active">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Dedicated Ports Matrix</h2>
+          <p class="section-desc">Each PC on your Wi-Fi connects to its own port. Assign each port a separate proxy so every PC gets a unique public IP.</p>
+        </div>
+        <button class="btn btn-primary" id="refreshPortsBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Refresh Status
+        </button>
+      </div>
+
+      <div class="ports-grid" id="portsGridContainer">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+    <!-- TAB 2: PROXY MANAGER -->
+    <section id="proxiesTab" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Proxy Credentials &amp; Exit Tunnels</h2>
+          <p class="section-desc">Add SOCKS5 or HTTP Residential Proxies. These are assigned to your device ports so each Fiverr account uses its own clean IP.</p>
+        </div>
+        <button class="btn btn-primary" id="openAddProxyModalBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add New Proxy
+        </button>
+      </div>
+
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>NAME</th>
+              <th>PROTOCOL</th>
+              <th>HOST:PORT</th>
+              <th>PUBLIC EXIT IP</th>
+              <th>COUNTRY</th>
+              <th>LATENCY</th>
+              <th>STATUS</th>
+              <th style="text-align: right;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="proxiesTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: WI-FI NETWORK DEVICES -->
+    <section id="wifiTab" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Wi-Fi & LAN Connected Devices</h2>
+          <p class="section-desc">Live monitor of all mobiles, tablets, and computers on your Wi-Fi passing through OFFICIALUM1 Security Shield.</p>
+        </div>
+        <button class="btn btn-primary" id="refreshWifiBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Scan &amp; Refresh
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>DEVICE / IP ADDRESS</th>
+              <th>MAC ADDRESS</th>
+              <th>DEVICE CLASSIFICATION</th>
+              <th>LIVE SPEED</th>
+              <th>DATA USED</th>
+              <th>AUTO-ASSIGNED PORT</th>
+              <th>LIVE STATUS</th>
+              <th style="text-align: right;">ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="wifiDevicesTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    OFFICIALUM1 Security Gateway &bull; Multi-Device Proxy Hub &bull; DNS Ad-Shield &bull; Traffic Monitor
+  </footer>
+
+  <!-- ADD PROXY MODAL -->
+  <div class="modal-overlay" id="addProxyModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Upstream Proxy</h3>
+        <button class="modal-close" id="closeAddProxyModalBtn">&times;</button>
+      </div>
+      <form id="addProxyForm">
+        <div class="form-group">
+          <label class="form-label">Proxy Name / Label</label>
+          <input type="text" id="proxyNameInput" class="form-control" placeholder="e.g. US Residential Proxy 1 (Account 1)" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label">Protocol</label>
+            <select id="proxyProtocolInput" class="form-control">
+              <option value="socks5">SOCKS5 (Recommended)</option>
+              <option value="http">HTTP / HTTPS</option>
+            </select>
+          </div>
+          <div class="form-group flex-2">
+            <label class="form-label">Proxy Host / IP</label>
+            <input type="text" id="proxyHostInput" class="form-control" placeholder="e.g. proxy.iproyal.com or 142.x.x.x" required>
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label">Port</label>
+            <input type="number" id="proxyPortInput" class="form-control" placeholder="12321" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label">Username (Optional)</label>
+            <input type="text" id="proxyUserInput" class="form-control" placeholder="username">
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label">Password (Optional)</label>
+            <input type="password" id="proxyPassInput" class="form-control" placeholder="password">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelAddProxyBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveProxySubmitBtn">Save &amp; Test IP</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- HOW TO CONNECT PC GUIDE MODAL -->
+  <div class="modal-overlay" id="guideModal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">How to Connect Client PCs on Wi-Fi</h3>
+        <button class="modal-close" id="closeGuideModalBtn">&times;</button>
+      </div>
+      <div class="modal-body guide-content">
+        <p class="guide-intro">All 10 PCs on your Wi-Fi can connect in 30 seconds without installing any software:</p>
+
+        <div class="guide-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Check Hub IP Address</h4>
+            <p>Your Main PC Hub IP is: <strong class="highlight-mono" id="guideHubIp">192.168.100.158</strong></p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4 style="color: #60a5fa;">Recommended: 1-Click Smart Auto-PAC (Zero Port Setup)</h4>
+            <p>Turn ON <strong>"Use setup script"</strong> on ANY laptop and enter:</p>
+            <p><code class="code-badge" style="font-size: 13px; color: #93c5fd; background: rgba(59,130,246,0.12); padding: 5px 12px;" id="guidePacScriptCode">http://192.168.100.158:8088/proxy.pac</code></p>
+            <p style="font-size: 12px; color: #9ca3af; margin-top: 4px;">✨ The Hub automatically recognizes your laptop by IP and assigns its dedicated port &amp; proxy!</p>
+
+            <h4 style="margin-top: 14px;">Or Option B: Universal Auto-Port</h4>
+            <p>Under <strong>Manual proxy setup</strong>, enter:</p>
+            <p><strong>Proxy IP:</strong> <code class="code-badge" id="guideProxyIpCode">192.168.100.158</code> &nbsp; <strong>Port:</strong> <code class="code-badge" style="color: #34d399;">8100</code></p>
+            <p style="font-size: 12px; color: #9ca3af;">(Same port 8100 works for all laptops with automatic IP routing)</p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Verification (Exit IP)</h4>
+            <p>On that PC, visit <code>whatismyipaddress.com</code>. It will show the dedicated exit IP assigned to your port!</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="closeGuideDoneBtn">Got It!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast-box"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

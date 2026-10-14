@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.github
+.agents
+*.bat
+test_system.py
+data/local_cache.db
