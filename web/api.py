@@ -203,30 +203,32 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         dns_clients = dns_firewall.get_active_clients(timeout_sec=600) if dns_firewall else []
         hub_ip = store.get_settings().get("hub_ip", "192.168.100.158")
 
-        try:
-            out = subprocess.check_output("arp -a", shell=True, text=True, errors="ignore")
-            for line in out.splitlines():
-                parts = line.strip().split()
-                if len(parts) >= 3 and parts[0].startswith("192.168.100."):
-                    ip = parts[0]
-                    mac = parts[1].replace("-", ":").upper()
-                    ip_type = parts[2]
-                    if ip_type.lower() == "dynamic" and ip not in ("192.168.100.1", hub_ip):
-                        is_active = (ip in dns_clients) or True
-                        info = KNOWN_DEVICE_MAP.get(mac, {})
-                        dev_name = info.get("name", f"Wi-Fi Client ({ip})")
-                        dev_type = info.get("type", "Wireless Mobile / PC")
-                        devices.append({
-                            "ip": ip,
-                            "mac": mac,
-                            "name": dev_name,
-                            "type": dev_type,
-                            "status": "SHIELDED",
-                            "dns_active": is_active
-                        })
-                        seen_ips.add(ip)
-        except Exception:
-            pass
+        import platform
+        if platform.system() == "Windows":
+            try:
+                out = subprocess.check_output("arp -a", shell=True, text=True, errors="ignore", timeout=0.8)
+                for line in out.splitlines():
+                    parts = line.strip().split()
+                    if len(parts) >= 3 and parts[0].startswith("192.168.100."):
+                        ip = parts[0]
+                        mac = parts[1].replace("-", ":").upper()
+                        ip_type = parts[2]
+                        if ip_type.lower() == "dynamic" and ip not in ("192.168.100.1", hub_ip):
+                            is_active = (ip in dns_clients) or True
+                            info = KNOWN_DEVICE_MAP.get(mac, {})
+                            dev_name = info.get("name", f"Wi-Fi Client ({ip})")
+                            dev_type = info.get("type", "Wireless Mobile / PC")
+                            devices.append({
+                                "ip": ip,
+                                "mac": mac,
+                                "name": dev_name,
+                                "type": dev_type,
+                                "status": "SHIELDED",
+                                "dns_active": is_active
+                            })
+                            seen_ips.add(ip)
+            except Exception:
+                pass
 
         for raw_entry in dns_clients:
             if raw_entry not in seen_ips and raw_entry not in ("192.168.100.1", hub_ip, "127.0.0.1", "::1"):

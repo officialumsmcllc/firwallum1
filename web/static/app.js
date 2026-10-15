@@ -426,11 +426,27 @@
   });
 
   // --- REFRESH WI-FI DEVICES ---
+  let knownDeviceIps = new Set();
+  let isInitialDeviceLoad = true;
+
   async function refreshWifiDevices() {
     const data = await apiGet('wifi-devices');
     const badge = document.getElementById('wifiDeviceCountBadge');
     if (badge && data && data.total_count !== undefined) {
       badge.textContent = `${data.total_count} Online`;
+    }
+
+    // Auto-detect newly connected devices and show instant NextDNS-style alert
+    if (data && data.devices) {
+      data.devices.forEach(d => {
+        if (!knownDeviceIps.has(d.ip)) {
+          if (!isInitialDeviceLoad) {
+            showToast(`🟢 New Device Connected: ${d.name || d.ip}!`);
+          }
+          knownDeviceIps.add(d.ip);
+        }
+      });
+      isInitialDeviceLoad = false;
     }
 
     const tbody = document.getElementById('wifiDevicesTableBody');
@@ -689,8 +705,8 @@
   // System monitor uptime ticker (every 1 sec)
   setInterval(() => updateSystemMonitor(null), 1000);
   
-  // Auto-refresh intervals
-  setInterval(refreshStatus, 4000);
-  setInterval(refreshWifiDevices, 8000);
+  // Auto-refresh intervals (NextDNS-style Real-Time Auto-Sync)
+  setInterval(refreshStatus, 2500);
+  setInterval(refreshWifiDevices, 2000);
 
 })();
