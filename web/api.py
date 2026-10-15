@@ -261,6 +261,23 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             "hub_ip": hub_ip
         })
 
+    @api.route("/wifi-devices/sync", methods=["POST"])
+    def sync_wifi_devices():
+        """
+        Receives real-time live device lists from Huawei Router or local probe
+        and dynamically registers new devices in the Cloud database.
+        """
+        data = request.json or {}
+        incoming_devices = data.get("devices", [])
+        for dev in incoming_devices:
+            ip = dev.get("ip")
+            name = dev.get("name") or f"Wi-Fi Client ({ip})"
+            mac = dev.get("mac", "")
+            dev_type = dev.get("type", "Connected Device")
+            if ip:
+                store.upsert_wifi_device(ip=ip, name=name, mac=mac, dev_type=dev_type)
+        return jsonify({"status": "synced", "count": len(incoming_devices)})
+
     @api.route("/wifi-devices/block", methods=["POST"])
     def block_wifi_device():
         data = request.json or {}
