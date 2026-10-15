@@ -228,17 +228,21 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         except Exception:
             pass
 
-        for ip in dns_clients:
-            if ip not in seen_ips and ip not in ("192.168.100.1", hub_ip, "127.0.0.1", "::1"):
+        for raw_entry in dns_clients:
+            if raw_entry not in seen_ips and raw_entry not in ("192.168.100.1", hub_ip, "127.0.0.1", "::1"):
+                parts = raw_entry.split(" - ")
+                dev_ip = parts[0]
+                dev_name = parts[1] if len(parts) > 1 else f"Wi-Fi Client ({dev_ip})"
+                dev_type = "Named Mobile / PC" if len(parts) > 1 else "Active Wi-Fi Device"
                 devices.append({
-                    "ip": ip,
+                    "ip": raw_entry,
                     "mac": "--",
-                    "name": f"Wi-Fi Client ({ip})",
-                    "type": "Active Wi-Fi Device",
+                    "name": dev_name,
+                    "type": dev_type,
                     "status": "SHIELDED",
                     "dns_active": True
                 })
-                seen_ips.add(ip)
+                seen_ips.add(raw_entry)
 
         from core.store import traffic_tracker
         for d in devices:

@@ -94,20 +94,25 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
         return Response(pac_code, mimetype="application/x-ns-proxy-autoconfig")
 
     @app.route("/dns-query", methods=["GET", "POST"])
-    def doh_query():
+    @app.route("/dns-query/<device_name>", methods=["GET", "POST"])
+    def doh_query(device_name=None):
         """
-        RFC 8484 DNS-over-HTTPS (DoH) Endpoint.
-        Enables 100% active cloud firewall on Render without needing Port 53 UDP.
-        Android 'Private DNS', iOS DNS profiles, and Windows 11 DoH connect directly here.
+        RFC 8484 DNS-over-HTTPS (DoH) Endpoint with NextDNS-style Device Tagging.
+        Supports:
+        - https://hub.officialum1.com/dns-query
+        - https://hub.officialum1.com/dns-query/Infinix-Hot-11
+        - https://hub.officialum1.com/dns-query/Vivo-V2109
         """
-        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
+        raw_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
+        dev_tag = device_name or request.args.get("device") or request.args.get("name")
+        client_key = f"{raw_ip} - {dev_tag}" if dev_tag else raw_ip
 
         # Track client in firewall
-        if client_ip and hasattr(dns_firewall, "live_clients"):
+        if client_key and hasattr(dns_firewall, "live_clients"):
             with dns_firewall._client_lock:
-                dns_firewall.live_clients[client_ip] = time.time()
+                dns_firewall.live_clients[client_key] = time.time()
 
-        if store.is_client_blocked(client_ip):
+        if store.is_client_blocked(raw_ip) or store.is_client_blocked(client_key):
             return Response(b"", status=403)
 
         if request.method == "POST":
@@ -134,7 +139,7 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
             return "Resolution Failed", 500
 
         from core.store import traffic_tracker
-        traffic_tracker.record(client_ip, len(data) + len(resp))
+        traffic_tracker.record(client_key, len(data) + len(resp))
 
         return Response(response=[bytes(resp)], mimetype="application/dns-message", headers={
             "Content-Length": str(len(resp)),
