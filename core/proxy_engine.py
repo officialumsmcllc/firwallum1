@@ -163,7 +163,7 @@ class PortProxyServer:
 
                 if upstream_sock:
                     client_sock.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-                    self._splice_sockets(client_sock, upstream_sock, rate_limit_mbps, active_port=active_port)
+                    self._splice_sockets(client_sock, upstream_sock, rate_limit_mbps, active_port=active_port, client_ip=client_addr[0])
                 else:
                     client_sock.sendall(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
 
@@ -196,7 +196,7 @@ class PortProxyServer:
 
                 if upstream_sock:
                     upstream_sock.sendall(payload)
-                    self._splice_sockets(client_sock, upstream_sock, rate_limit_mbps, active_port=active_port)
+                    self._splice_sockets(client_sock, upstream_sock, rate_limit_mbps, active_port=active_port, client_ip=client_addr[0])
                 else:
                     client_sock.sendall(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
 
@@ -371,7 +371,7 @@ class PortProxyServer:
         except Exception:
             return None
 
-    def _splice_sockets(self, s1: socket.socket, s2: socket.socket, rate_limit_mbps: float = 0.0, active_port: Optional[int] = None):
+    def _splice_sockets(self, s1: socket.socket, s2: socket.socket, rate_limit_mbps: float = 0.0, active_port: Optional[int] = None, client_ip: Optional[str] = None):
         try:
             s1.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             s2.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -400,6 +400,8 @@ class PortProxyServer:
                         return
                     from core.store import traffic_tracker
                     traffic_tracker.record(effective_port, len(data))
+                    if client_ip:
+                        traffic_tracker.record(client_ip, len(data))
                     if limiter and s is s2:  # Remote to client downstream
                         limiter.consume(len(data))
                     other.sendall(data)

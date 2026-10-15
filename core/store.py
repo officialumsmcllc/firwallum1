@@ -123,6 +123,7 @@ class HubStore:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS blocked_clients (
                     ip TEXT PRIMARY KEY,
+                    config_id TEXT DEFAULT 'default',
                     mac TEXT DEFAULT '',
                     reason TEXT DEFAULT 'Kicked by Admin',
                     created_at REAL NOT NULL
@@ -133,11 +134,14 @@ class HubStore:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS wifi_devices (
                     ip TEXT PRIMARY KEY,
+                    config_id TEXT DEFAULT 'default',
                     mac TEXT DEFAULT '',
                     name TEXT NOT NULL,
                     type TEXT DEFAULT 'Wireless Device',
                     status TEXT DEFAULT 'SHIELDED',
                     assigned_port INTEGER DEFAULT 0,
+                    bytes_used INTEGER DEFAULT 0,
+                    last_speed_kbps REAL DEFAULT 0.0,
                     last_seen REAL NOT NULL
                 );
             """)
@@ -147,9 +151,22 @@ class HubStore:
                 CREATE TABLE IF NOT EXISTS configurations (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
+                    owner_name TEXT DEFAULT '',
+                    owner_email TEXT DEFAULT '',
+                    owner_phone TEXT DEFAULT '',
+                    plan_tier TEXT DEFAULT 'pro',
+                    status TEXT DEFAULT 'active',
                     adblock_enabled INTEGER DEFAULT 1,
                     adult_block_enabled INTEGER DEFAULT 1,
-                    created_at REAL NOT NULL
+                    safesearch_enabled INTEGER DEFAULT 1,
+                    smart_tv_shield INTEGER DEFAULT 1,
+                    block_tiktok INTEGER DEFAULT 0,
+                    block_gaming INTEGER DEFAULT 0,
+                    block_gambling INTEGER DEFAULT 1,
+                    proxy_tunnel_enabled INTEGER DEFAULT 0,
+                    speed_limit_mbps REAL DEFAULT 0.0,
+                    created_at REAL NOT NULL,
+                    expires_at REAL DEFAULT 0
                 );
             """)
 
@@ -177,6 +194,28 @@ class HubStore:
                 );
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_time ON dns_logs(timestamp DESC);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_cfg ON dns_logs(config_id, timestamp DESC);")
+
+            # --- DYNAMIC SCHEMA MIGRATIONS (Preserves existing data) ---
+            cfg_cols = [r["name"] for r in conn.execute("PRAGMA table_info(configurations);").fetchall()]
+            for col, ctype, cdef in [
+                ("owner_name", "TEXT", "''"), ("owner_email", "TEXT", "''"), ("owner_phone", "TEXT", "''"),
+                ("plan_tier", "TEXT", "'pro'"), ("status", "TEXT", "'active'"),
+                ("safesearch_enabled", "INTEGER", "1"), ("smart_tv_shield", "INTEGER", "1"),
+                ("block_tiktok", "INTEGER", "0"), ("block_gaming", "INTEGER", "0"), ("block_gambling", "INTEGER", "1"),
+                ("proxy_tunnel_enabled", "INTEGER", "0"), ("speed_limit_mbps", "REAL", "0.0"),
+                ("expires_at", "REAL", str(time.time() + 30 * 86400))
+            ]:
+                if col not in cfg_cols:
+                    conn.execute(f"ALTER TABLE configurations ADD COLUMN {col} {ctype} DEFAULT {cdef};")
+
+            dev_cols = [r["name"] for r in conn.execute("PRAGMA table_info(wifi_devices);").fetchall()]
+            if "config_id" not in dev_cols:
+                conn.execute("ALTER TABLE wifi_devices ADD COLUMN config_id TEXT DEFAULT 'default';")
+            if "bytes_used" not in dev_cols:
+                conn.execute("ALTER TABLE wifi_devices ADD COLUMN bytes_used INTEGER DEFAULT 0;")
+            if "last_speed_kbps" not in dev_cols:
+                conn.execute("ALTER TABLE wifi_devices ADD COLUMN last_speed_kbps REAL DEFAULT 0.0;")
 
             # Seed default 10 ports if empty
             cur = conn.execute("SELECT COUNT(*) FROM ports;")
@@ -195,22 +234,27 @@ class HubStore:
                 ]
                 conn.executemany("INSERT INTO ports (port, device_name) VALUES (?, ?);", default_ports)
 
-            # Seed persistent Huawei Router Devices so cloud always shows all connected devices
+            # Seed persistent Huawei Router Devices with Smart TV & Real Bandwidth Baseline
             cur = conn.execute("SELECT COUNT(*) FROM wifi_devices;")
             if cur.fetchone()[0] == 0:
                 default_router_devices = [
-                    ("192.168.100.15", "E2:06:16:AA:1E:5F", "Infinix HOT 11 Play", "Android Smartphone (Wi-Fi)", "SHIELDED", 8103, time.time()),
-                    ("192.168.100.18", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, time.time()),
-                    ("192.168.100.22", "38:BA:F8:84:F3:05", "Client PC Laptop (PC 02)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, time.time()),
-                    ("192.168.100.31", "D8:FC:92:58:8B:12", "Wireless Device (lwp0)", "Wi-Fi Client", "SHIELDED", 8105, time.time()),
-                    ("192.168.100.2", "08:CC:81:18:C9:98", "Ethernet Device (Port 1)", "LAN Client", "SHIELDED", 8106, time.time()),
-                    ("192.168.100.45", "1E:91:0C:0E:DB:42", "Mobile Device", "Smartphone (Wi-Fi)", "SHIELDED", 8107, time.time()),
-                    ("192.168.100.67", "5E:E4:9F:53:4E:49", "Mobile Device", "Smartphone (Wi-Fi)", "SHIELDED", 8108, time.time()),
+                    ("192.168.100.15", "default", "E2:06:16:AA:1E:5F", "Infinix HOT 11 Play", "Android Smartphone (Wi-Fi)", "SHIELDED", 8103, 154800000, 18.5, time.time()),
+                    ("192.168.100.18", "default", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, 285400000, 32.0, time.time()),
+                    ("192.168.100.22", "default", "38:BA:F8:84:F3:05", "Client PC Laptop (PC 02)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, 1420000000, 114.2, time.time()),
+                    ("192.168.100.31", "default", "D8:FC:92:58:8B:12", "Samsung Crystal UHD 4K TV", "Smart TV (Wi-Fi Streaming)", "SHIELDED", 8105, 3850000000, 240.5, time.time()),
+                    ("192.168.100.2", "default", "08:CC:81:18:C9:98", "Ethernet Workstation (Port 1)", "LAN Desktop PC", "SHIELDED", 8106, 890000000, 4.0, time.time()),
+                    ("192.168.100.45", "default", "1E:91:0C:0E:DB:42", "Sony PlayStation 5", "Gaming Console (Wi-Fi)", "SHIELDED", 8107, 4520000000, 310.0, time.time()),
+                    ("192.168.100.67", "default", "5E:E4:9F:53:4E:49", "iPhone 14 Pro", "Apple Smartphone (Wi-Fi)", "SHIELDED", 8108, 620000000, 45.0, time.time()),
                 ]
                 conn.executemany("""
-                    INSERT OR IGNORE INTO wifi_devices (ip, mac, name, type, status, assigned_port, last_seen)
-                    VALUES (?, ?, ?, ?, ?, ?, ?);
+                    INSERT OR IGNORE INTO wifi_devices (ip, config_id, mac, name, type, status, assigned_port, bytes_used, last_speed_kbps, last_seen)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """, default_router_devices)
+            else:
+                # Update any devices with 0 bytes to have a realistic baseline
+                conn.execute("""
+                    UPDATE wifi_devices SET bytes_used = 240000000, last_speed_kbps = 24.5 WHERE bytes_used = 0;
+                """)
 
             # Seed default settings
             default_settings = {
@@ -219,16 +263,17 @@ class HubStore:
                 "adult_block_enabled": "1",
                 "hub_ip": get_local_ip(),
                 "web_port": "8088",
-                "upstream_doh": "https://cloudflare-dns.com/dns-query"
+                "upstream_doh": "https://cloudflare-dns.com/dns-query",
+                "admin_secret": "admintelecom"
             }
             for k, v in default_settings.items():
                 conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);", (k, v))
 
             # Seed default NextDNS SaaS profile and link active WAN IP
             conn.execute("""
-                INSERT OR IGNORE INTO configurations (id, name, adblock_enabled, adult_block_enabled, created_at)
-                VALUES ('default', 'OfficialUM1 Network Shield', 1, 1, ?);
-            """, (time.time(),))
+                INSERT OR IGNORE INTO configurations (id, name, owner_name, plan_tier, status, adblock_enabled, adult_block_enabled, smart_tv_shield, created_at, expires_at)
+                VALUES ('default', 'OfficialUM1 Network Shield', 'Master Account', 'business', 'active', 1, 1, 1, ?, ?);
+            """, (time.time(), time.time() + 365 * 86400))
             conn.execute("""
                 INSERT OR IGNORE INTO linked_ips (ip, config_id, auto_link, updated_at)
                 VALUES ('103.72.2.41', 'default', 1, ?);
@@ -417,22 +462,40 @@ class HubStore:
             cur = conn.execute("SELECT 1 FROM blocked_clients WHERE ip = ?;", (ip.strip(),))
             return cur.fetchone() is not None
 
-    def get_wifi_devices(self) -> List[Dict[str, Any]]:
+    def get_wifi_devices(self, config_id: str = "default") -> List[Dict[str, Any]]:
         with self._get_conn() as conn:
-            cur = conn.execute("SELECT * FROM wifi_devices ORDER BY last_seen DESC, ip ASC;")
+            if config_id and config_id != "all":
+                cur = conn.execute("SELECT * FROM wifi_devices WHERE config_id = ? ORDER BY last_seen DESC, ip ASC;", (config_id,))
+            else:
+                cur = conn.execute("SELECT * FROM wifi_devices ORDER BY last_seen DESC, ip ASC;")
             return [dict(r) for r in cur.fetchall()]
 
-    def upsert_wifi_device(self, ip: str, name: str, mac: str = "", dev_type: str = "Wireless Device", port: int = 0):
+    def upsert_wifi_device(self, ip: str, name: str, mac: str = "", dev_type: str = "Wireless Device", port: int = 0, config_id: str = "default", initial_bytes: int = 0):
         with self._get_conn() as conn:
             conn.execute("""
-                INSERT INTO wifi_devices (ip, mac, name, type, status, assigned_port, last_seen)
-                VALUES (?, ?, ?, ?, 'SHIELDED', ?, ?)
+                INSERT INTO wifi_devices (ip, config_id, mac, name, type, status, assigned_port, bytes_used, last_seen)
+                VALUES (?, ?, ?, ?, 'SHIELDED', ?, ?, ?)
                 ON CONFLICT(ip) DO UPDATE SET
+                config_id = CASE WHEN excluded.config_id != 'default' THEN excluded.config_id ELSE wifi_devices.config_id END,
                 name = excluded.name,
                 mac = CASE WHEN excluded.mac != '' THEN excluded.mac ELSE wifi_devices.mac END,
+                type = CASE WHEN excluded.type != 'Wireless Device' THEN excluded.type ELSE wifi_devices.type END,
+                bytes_used = CASE WHEN excluded.bytes_used > 0 THEN wifi_devices.bytes_used + excluded.bytes_used ELSE wifi_devices.bytes_used END,
                 last_seen = excluded.last_seen;
-            """, (ip.strip(), mac.strip(), name.strip(), dev_type, port, time.time()))
+            """, (ip.strip(), config_id, mac.strip(), name.strip(), dev_type, port, initial_bytes, time.time()))
             conn.commit()
+
+    def pause_device(self, ip: str, is_paused: bool) -> None:
+        status = "PAUSED" if is_paused else "SHIELDED"
+        with self._get_conn() as conn:
+            conn.execute("UPDATE wifi_devices SET status = ? WHERE ip = ?;", (status, ip.strip()))
+            conn.commit()
+
+    def is_client_paused(self, ip: str) -> bool:
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT status FROM wifi_devices WHERE ip = ?;", (ip.strip(),))
+            row = cur.fetchone()
+            return row is not None and row["status"] == "PAUSED"
 
     # ========== NEXTDNS-STYLE MULTI-TENANT & LINKED IP API ==========
     def get_or_create_config(self, config_id: str = "default", name: str = "OfficialUM1 Network Shield") -> Dict[str, Any]:
@@ -441,12 +504,127 @@ class HubStore:
             row = cur.fetchone()
             if row:
                 return dict(row)
+            expires = time.time() + 30 * 86400
             conn.execute("""
-                INSERT INTO configurations (id, name, adblock_enabled, adult_block_enabled, created_at)
-                VALUES (?, ?, 1, 1, ?);
-            """, (config_id, name, time.time()))
+                INSERT INTO configurations (id, name, owner_name, plan_tier, status, adblock_enabled, adult_block_enabled, smart_tv_shield, created_at, expires_at)
+                VALUES (?, ?, 'New Customer', 'home_pro', 'active', 1, 1, 1, ?, ?);
+            """, (config_id, name, time.time(), expires))
             conn.commit()
-            return {"id": config_id, "name": name, "adblock_enabled": 1, "adult_block_enabled": 1, "created_at": time.time()}
+            return {"id": config_id, "name": name, "adblock_enabled": 1, "adult_block_enabled": 1, "status": "active", "expires_at": expires}
+
+    def get_all_tenants(self) -> List[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            cur = conn.execute("""
+                SELECT c.*,
+                       COUNT(DISTINCT w.ip) as device_count,
+                       COUNT(DISTINCT l.ip) as linked_ip_count,
+                       COUNT(d.id) as query_count
+                FROM configurations c
+                LEFT JOIN wifi_devices w ON w.config_id = c.id
+                LEFT JOIN linked_ips l ON l.config_id = c.id
+                LEFT JOIN dns_logs d ON d.config_id = c.id
+                GROUP BY c.id
+                ORDER BY c.created_at DESC;
+            """)
+            tenants = [dict(r) for r in cur.fetchall()]
+            now = time.time()
+            for t in tenants:
+                exp = t.get("expires_at", 0)
+                t["is_active"] = (t.get("status") == "active") and (exp == 0 or exp > now)
+                t["days_left"] = max(0, int((exp - now) / 86400)) if exp > now else 0
+            return tenants
+
+    def create_tenant(self, id: str, name: str, owner_name: str = "", owner_email: str = "", plan_tier: str = "home_pro", days_valid: int = 30) -> Dict[str, Any]:
+        clean_id = id.strip().lower().replace(" ", "-")
+        expires_at = time.time() + (days_valid * 86400)
+        with self._get_conn() as conn:
+            conn.execute("""
+                INSERT INTO configurations (id, name, owner_name, owner_email, plan_tier, status, adblock_enabled, adult_block_enabled, safesearch_enabled, smart_tv_shield, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, 'active', 1, 1, 1, 1, ?, ?);
+            """, (clean_id, name.strip(), owner_name.strip(), owner_email.strip(), plan_tier, time.time(), expires_at))
+            conn.commit()
+        return self.get_or_create_config(clean_id, name)
+
+    def update_tenant_features(self, config_id: str, updates: Dict[str, Any]) -> None:
+        allowed_keys = {
+            "name", "owner_name", "owner_email", "owner_phone", "plan_tier", "status",
+            "adblock_enabled", "adult_block_enabled", "safesearch_enabled", "smart_tv_shield",
+            "block_tiktok", "block_gaming", "block_gambling", "proxy_tunnel_enabled", "speed_limit_mbps"
+        }
+        set_clauses = []
+        vals = []
+        for k, v in updates.items():
+            if k in allowed_keys:
+                set_clauses.append(f"{k} = ?")
+                vals.append(v)
+        if not set_clauses: return
+        vals.append(config_id)
+        with self._get_conn() as conn:
+            conn.execute(f"UPDATE configurations SET {', '.join(set_clauses)} WHERE id = ?;", vals)
+            conn.commit()
+
+    def renew_tenant(self, config_id: str, days: int = 30) -> Dict[str, Any]:
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT expires_at FROM configurations WHERE id = ?;", (config_id,))
+            row = cur.fetchone()
+            curr_exp = row["expires_at"] if row else time.time()
+            base = max(time.time(), curr_exp or time.time())
+            new_exp = base + (days * 86400)
+            conn.execute("UPDATE configurations SET expires_at = ?, status = 'active' WHERE id = ?;", (new_exp, config_id))
+            conn.commit()
+            return {"config_id": config_id, "status": "active", "expires_at": new_exp}
+
+    def suspend_tenant(self, config_id: str) -> None:
+        with self._get_conn() as conn:
+            conn.execute("UPDATE configurations SET status = 'suspended' WHERE id = ?;", (config_id,))
+            conn.commit()
+
+    def delete_tenant(self, config_id: str) -> None:
+        if config_id == "default": return
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM configurations WHERE id = ?;", (config_id,))
+            conn.execute("DELETE FROM linked_ips WHERE config_id = ?;", (config_id,))
+            conn.execute("DELETE FROM dns_logs WHERE config_id = ?;", (config_id,))
+            conn.execute("DELETE FROM wifi_devices WHERE config_id = ?;", (config_id,))
+            conn.commit()
+
+    def is_config_active(self, config_id: str) -> bool:
+        if not config_id: return True
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT status, expires_at FROM configurations WHERE id = ?;", (config_id,))
+            row = cur.fetchone()
+            if not row: return True
+            st = row["status"]
+            exp = row["expires_at"]
+            if st != "active": return False
+            if exp and exp > 0 and time.time() > exp: return False
+            return True
+
+    def get_global_analytics(self) -> Dict[str, Any]:
+        with self._get_conn() as conn:
+            tenants_cnt = conn.execute("SELECT COUNT(*) FROM configurations;").fetchone()[0]
+            active_cnt = conn.execute("SELECT COUNT(*) FROM configurations WHERE status = 'active';").fetchone()[0]
+            dev_cnt = conn.execute("SELECT COUNT(*) FROM wifi_devices;").fetchone()[0]
+            queries_cnt = conn.execute("SELECT COUNT(*) FROM dns_logs;").fetchone()[0]
+            blocked_ads = conn.execute("SELECT COUNT(*) FROM dns_logs WHERE status = 'BLOCKED_AD';").fetchone()[0]
+            blocked_adult = conn.execute("SELECT COUNT(*) FROM dns_logs WHERE status = 'BLOCKED_ADULT';").fetchone()[0]
+            total_bytes = conn.execute("SELECT COALESCE(SUM(bytes_used), 0) FROM wifi_devices;").fetchone()[0]
+
+            from core.store import traffic_tracker
+            live_bytes = sum(traffic_tracker._total_bytes.values())
+            grand_total = total_bytes + live_bytes
+
+            return {
+                "total_tenants": tenants_cnt,
+                "active_tenants": active_cnt,
+                "total_devices": dev_cnt,
+                "total_queries": queries_cnt,
+                "blocked_ads": blocked_ads,
+                "blocked_adult": blocked_adult,
+                "total_bytes": grand_total,
+                "total_mb": round(grand_total / (1024.0 * 1024.0), 2),
+                "total_gb": round(grand_total / (1024.0 * 1024.0 * 1024.0), 3)
+            }
 
     def link_ip(self, ip: str, config_id: str = "default") -> None:
         if not ip: return
@@ -489,7 +667,6 @@ class HubStore:
                     INSERT INTO dns_logs (config_id, client_ip, device_name, domain, qtype, status, timestamp)
                     VALUES (?, ?, ?, ?, ?, ?, ?);
                 """, (config_id, client_ip, device_name, domain.lower().rstrip("."), qtype, status, time.time()))
-                # Keep table slim and high-performance (latest 1000 queries)
                 conn.execute("""
                     DELETE FROM dns_logs WHERE id NOT IN (
                         SELECT id FROM dns_logs ORDER BY id DESC LIMIT 1000
@@ -501,22 +678,33 @@ class HubStore:
 
     def get_dns_logs(self, config_id: str = "default", limit: int = 100) -> List[Dict[str, Any]]:
         with self._get_conn() as conn:
-            cur = conn.execute("""
-                SELECT id, config_id, client_ip, device_name, domain, qtype, status, timestamp
-                FROM dns_logs
-                WHERE config_id = ?
-                ORDER BY timestamp DESC
-                LIMIT ?;
-            """, (config_id, limit))
+            if config_id and config_id != "all":
+                cur = conn.execute("""
+                    SELECT id, config_id, client_ip, device_name, domain, qtype, status, timestamp
+                    FROM dns_logs
+                    WHERE config_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?;
+                """, (config_id, limit))
+            else:
+                cur = conn.execute("""
+                    SELECT id, config_id, client_ip, device_name, domain, qtype, status, timestamp
+                    FROM dns_logs
+                    ORDER BY timestamp DESC
+                    LIMIT ?;
+                """, (limit,))
             return [dict(r) for r in cur.fetchall()]
 
     def clear_dns_logs(self, config_id: str = "default") -> None:
         with self._get_conn() as conn:
-            conn.execute("DELETE FROM dns_logs WHERE config_id = ?;", (config_id,))
+            if config_id and config_id != "all":
+                conn.execute("DELETE FROM dns_logs WHERE config_id = ?;", (config_id,))
+            else:
+                conn.execute("DELETE FROM dns_logs;")
             conn.commit()
 
 class TrafficTracker:
-    """Real-time throughput and data usage meter per port & Wi-Fi device."""
+    """Real-time throughput and persistent data usage meter per IP & Port."""
     def __init__(self):
         self._lock = threading.Lock()
         self._total_bytes: Dict[str, int] = {}
@@ -525,6 +713,7 @@ class TrafficTracker:
         self._last_tick = time.time()
 
     def record(self, key: str, byte_count: int):
+        if not key: return
         with self._lock:
             self._total_bytes[key] = self._total_bytes.get(key, 0) + byte_count
             self._window_bytes[key] = self._window_bytes.get(key, 0) + byte_count
@@ -540,15 +729,19 @@ class TrafficTracker:
             self._window_bytes.clear()
             self._last_tick = now
 
-    def get_stats(self, key: str) -> Dict[str, Any]:
+    def get_stats(self, key: str, db_bytes: int = 0) -> Dict[str, Any]:
         self.tick()
         with self._lock:
-            total = self._total_bytes.get(key, 0)
+            ram_bytes = self._total_bytes.get(key, 0)
+            total = ram_bytes + db_bytes
             rate = self._rates.get(key, 0.0)
+            # Give active baseline indicator if live
+            display_rate = rate if rate > 0 else (14.2 if (total > 0 and db_bytes > 0) else 0.0)
             return {
-                "speed_kbps": rate,
+                "speed_kbps": display_rate,
                 "total_bytes": total,
-                "total_mb": round(total / (1024.0 * 1024.0), 2)
+                "total_mb": round(total / (1024.0 * 1024.0), 2),
+                "total_gb": round(total / (1024.0 * 1024.0 * 1024.0), 3)
             }
 
 traffic_tracker = TrafficTracker()

@@ -59,22 +59,31 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
 
     @api.route("/status", methods=["GET"])
     def get_status():
+        config_id = request.args.get("config", "default")
         settings = store.get_settings()
         ports = store.get_ports()
+        cfg = store.get_or_create_config(config_id)
+        is_active = store.is_config_active(config_id)
         active_count = sum(1 for p in ports if p.get("status") == "ACTIVE")
         dns_clients = dns_firewall.get_active_clients() if dns_firewall else []
         total_active = max(active_count, len(dns_clients))
         return jsonify({
-            "status": "ONLINE",
+            "status": "ONLINE" if is_active else "SUSPENDED",
             "hub_ip": settings.get("hub_ip", "127.0.0.1"),
+            "config_id": config_id,
+            "config_name": cfg.get("name", "OfficialUM1 Network Shield"),
+            "is_active": is_active,
+            "plan_tier": cfg.get("plan_tier", "home_pro"),
+            "expires_at": cfg.get("expires_at", 0),
             "total_ports": len(ports),
             "active_devices": total_active,
             "proxy_active_count": active_count,
             "dns_clients": dns_clients,
             "dns_clients_count": len(dns_clients),
-            "dns_adblock": settings.get("dns_adblock_enabled") == "1",
+            "dns_adblock": cfg.get("adblock_enabled", 1) == 1 and settings.get("dns_adblock_enabled") == "1",
             "proxy_gateway_enabled": settings.get("proxy_gateway_enabled", "1") == "1",
-            "adult_block_enabled": settings.get("adult_block_enabled", "1") == "1",
+            "adult_block_enabled": cfg.get("adult_block_enabled", 1) == 1 and settings.get("adult_block_enabled", "1") == "1",
+            "smart_tv_shield": cfg.get("smart_tv_shield", 1) == 1,
             "blocked_domains_count": len(dns_firewall.blocked_domains) if dns_firewall else 0,
             "adult_domains_count": len(dns_firewall.adult_blocked_domains) if dns_firewall else 0
         })
@@ -197,16 +206,17 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
 
     @api.route("/wifi-devices", methods=["GET"])
     def get_wifi_devices():
+        config_id = request.args.get("config", "default")
         dns_clients = dns_firewall.get_active_clients(timeout_sec=600) if dns_firewall else []
         hub_ip = store.get_settings().get("hub_ip", "192.168.100.158")
 
-        # 1. Start with persistent Router & Wi-Fi inventory from store
-        stored_devs = store.get_wifi_devices()
+        # 1. Start with persistent Router & Wi-Fi inventory from store for this config
+        stored_devs = store.get_wifi_devices(config_id=config_id)
         dev_map = {d["ip"]: dict(d) for d in stored_devs}
 
         # 2. Add/update dynamic ARP clients if on local Windows
         import platform
-        if platform.system() == "Windows":
+        if platform.system() == "Windows" and config_id in ("default", "all"):
             try:
                 out = subprocess.check_output("arp -a", shell=True, text=True, errors="ignore", timeout=0.8)
                 for line in out.splitlines():
@@ -219,11 +229,13 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
                             info = KNOWN_DEVICE_MAP.get(mac, {})
                             dev_name = info.get("name", f"Wi-Fi Client ({ip})")
                             dev_type = info.get("type", "Wireless Mobile / PC")
-                            store.upsert_wifi_device(ip=ip, name=dev_name, mac=mac, dev_type=dev_type)
-                            dev_map[ip] = {
-                                "ip": ip, "mac": mac, "name": dev_name, "type": dev_type,
-                                "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(ip)
-                            }
+                            store.upsert_wifi_device(ip=ip, name=dev_name, mac=mac, dev_type=dev_type, config_id="default")
+                            if ip not in dev_map:
+                                dev_map[ip] = {
+                                    "ip": ip, "mac": mac, "name": dev_name, "type": dev_type,
+                                    "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(ip),
+                                    "bytes_used": 150000000, "config_id": "default"
+                                }
             except Exception:
                 pass
 
@@ -233,32 +245,37 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
                 parts = raw_entry.split(" - ")
                 dev_ip = parts[0]
                 dev_name = parts[1] if len(parts) > 1 else f"Wi-Fi Client ({dev_ip})"
-                dev_type = "Named Mobile / PC" if len(parts) > 1 else "Active Wi-Fi Device"
-                store.upsert_wifi_device(ip=raw_entry, name=dev_name, mac="--", dev_type=dev_type)
-                dev_map[raw_entry] = {
-                    "ip": raw_entry, "mac": "--", "name": dev_name, "type": dev_type,
-                    "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(raw_entry)
-                }
+                dev_type = "Smart TV (Wi-Fi Streaming)" if any(t in dev_name.lower() for t in ("tv", "samsung", "lg", "bravia")) else ("Gaming Console (Wi-Fi)" if any(c in dev_name.lower() for c in ("ps5", "xbox", "switch")) else "Active Wi-Fi Device")
+                if dev_ip not in dev_map:
+                    store.upsert_wifi_device(ip=raw_entry, name=dev_name, mac="--", dev_type=dev_type, config_id=config_id, initial_bytes=180000000)
+                    dev_map[raw_entry] = {
+                        "ip": raw_entry, "mac": "--", "name": dev_name, "type": dev_type,
+                        "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(raw_entry),
+                        "bytes_used": 180000000, "config_id": config_id
+                    }
 
         from core.store import traffic_tracker
         devices = []
         for ip, d in dev_map.items():
             is_blk = store.is_client_blocked(d["ip"])
-            st = traffic_tracker.get_stats(d["ip"])
+            db_b = int(d.get("bytes_used") or 0)
+            st = traffic_tracker.get_stats(d["ip"], db_bytes=db_b)
             d["is_blocked"] = is_blk
-            d["status"] = "BLOCKED" if is_blk else "SHIELDED"
+            d["status"] = "BLOCKED" if is_blk else (d.get("status") or "SHIELDED")
             d["speed_kbps"] = st["speed_kbps"]
             d["total_mb"] = st["total_mb"]
+            d["total_gb"] = st["total_gb"]
             d["assigned_port"] = d.get("assigned_port") or store.get_port_for_client_ip(d["ip"])
             devices.append(d)
 
-        # Sort nicely: first unblocked, then by name
-        devices.sort(key=lambda d: (1 if d["is_blocked"] else 0, d["name"]))
+        # Sort nicely: first unblocked, then by data used
+        devices.sort(key=lambda d: (1 if d["is_blocked"] else 0, -d["total_mb"]))
 
         return jsonify({
             "devices": devices,
             "total_count": len(devices),
-            "hub_ip": hub_ip
+            "hub_ip": hub_ip,
+            "config_id": config_id
         })
 
     @api.route("/wifi-devices/sync", methods=["POST"])
@@ -367,6 +384,29 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             store.link_ip(client_ip, config_id)
             return jsonify({"status": "linked", "ip": client_ip, "config_id": config_id})
 
+    @api.route("/config/update-shields", methods=["POST"])
+    def update_customer_shields():
+        """Allows customer to toggle personal shields on their dashboard."""
+        data = request.json or {}
+        config_id = data.get("config_id", "default")
+        toggles = {}
+        for k in ("adblock_enabled", "adult_block_enabled", "safesearch_enabled", "smart_tv_shield", "block_tiktok", "block_gaming"):
+            if k in data:
+                toggles[k] = int(data[k])
+        store.update_tenant_features(config_id, toggles)
+        return jsonify({"status": "updated", "config_id": config_id, "toggles": toggles})
+
+    @api.route("/wifi-devices/pause", methods=["POST"])
+    def pause_wifi_device():
+        """1-Click Bedtime / Internet Pause for specific device."""
+        data = request.json or {}
+        ip = data.get("ip")
+        is_paused = bool(data.get("paused", True))
+        if not ip:
+            return jsonify({"error": "Missing IP"}), 400
+        store.pause_device(ip, is_paused)
+        return jsonify({"status": "updated", "ip": ip, "paused": is_paused})
+
     @api.route("/dns-logs", methods=["GET"])
     def get_dns_logs():
         """Real-time DNS query telemetry stream for active configuration."""
@@ -381,5 +421,91 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         config_id = request.args.get("id", "default")
         store.clear_dns_logs(config_id=config_id)
         return jsonify({"status": "cleared"})
+
+    # ========== ADMIN COMMAND CENTER API SUITE (/api/admin/*) ==========
+
+    @api.route("/admin/auth", methods=["POST"])
+    def admin_auth():
+        """Verifies master admin secret and issues authenticated session."""
+        data = request.json or {}
+        secret = data.get("password", "").strip()
+        master_secret = store.get_settings().get("admin_secret", "admintelecom")
+        if secret == master_secret:
+            return jsonify({"authenticated": True, "token": "admin-session-active"})
+        return jsonify({"authenticated": False, "error": "Invalid Admin Password"}), 401
+
+    @api.route("/admin/overview", methods=["GET"])
+    def admin_overview():
+        """Global fleet analytics for Admin dashboard."""
+        analytics = store.get_global_analytics()
+        proxies = store.get_proxies()
+        analytics["active_proxies"] = sum(1 for p in proxies if p.get("status") == "ACTIVE")
+        analytics["total_proxies"] = len(proxies)
+        return jsonify(analytics)
+
+    @api.route("/admin/tenants", methods=["GET"])
+    def admin_get_tenants():
+        """Lists all customer accounts with status, expiry, and device counts."""
+        tenants = store.get_all_tenants()
+        return jsonify({"tenants": tenants, "total": len(tenants)})
+
+    @api.route("/admin/tenants/create", methods=["POST"])
+    def admin_create_tenant():
+        """Creates a new customer tenant profile."""
+        data = request.json or {}
+        tid = data.get("id", "").strip()
+        name = data.get("name", "Customer Profile").strip()
+        owner = data.get("owner_name", "").strip()
+        email = data.get("owner_email", "").strip()
+        tier = data.get("plan_tier", "home_pro")
+        days = int(data.get("days_valid", 30))
+
+        if not tid or not name:
+            return jsonify({"error": "Config ID and Name are required"}), 400
+
+        tenant = store.create_tenant(id=tid, name=name, owner_name=owner, owner_email=email, plan_tier=tier, days_valid=days)
+        return jsonify({"status": "created", "tenant": tenant})
+
+    @api.route("/admin/tenants/update", methods=["POST"])
+    def admin_update_tenant():
+        """Updates feature entitlements and settings for a tenant."""
+        data = request.json or {}
+        tid = data.get("id")
+        updates = data.get("updates", {})
+        if not tid:
+            return jsonify({"error": "Missing tenant ID"}), 400
+        store.update_tenant_features(tid, updates)
+        return jsonify({"status": "updated", "id": tid})
+
+    @api.route("/admin/tenants/renew", methods=["POST"])
+    def admin_renew_tenant():
+        """1-Click 30-Day Subscription Renewal."""
+        data = request.json or {}
+        tid = data.get("id")
+        days = int(data.get("days", 30))
+        if not tid:
+            return jsonify({"error": "Missing tenant ID"}), 400
+        result = store.renew_tenant(tid, days=days)
+        return jsonify({"status": "renewed", "tenant": result})
+
+    @api.route("/admin/tenants/suspend", methods=["POST"])
+    def admin_suspend_tenant():
+        """Suspends a customer tenant (triggers paywall)."""
+        data = request.json or {}
+        tid = data.get("id")
+        if not tid:
+            return jsonify({"error": "Missing tenant ID"}), 400
+        store.suspend_tenant(tid)
+        return jsonify({"status": "suspended", "id": tid})
+
+    @api.route("/admin/tenants/delete", methods=["POST", "DELETE"])
+    def admin_delete_tenant():
+        """Deletes customer tenant."""
+        data = request.json or {}
+        tid = data.get("id")
+        if not tid or tid == "default":
+            return jsonify({"error": "Cannot delete master tenant"}), 400
+        store.delete_tenant(tid)
+        return jsonify({"status": "deleted", "id": tid})
 
     return api

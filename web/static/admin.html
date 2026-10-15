@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFFICIALUM1 — Executive Admin Command Center</title>
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20261015-saas-v4">
+  <style>
+    .admin-badge {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+    .admin-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.65) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+    .auth-modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .auth-card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      border-radius: 20px;
+      padding: 32px 28px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+    .btn-action-sm {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .btn-renew {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+    .btn-renew:hover { background: #10b981; color: #fff; }
+    .btn-suspend {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    .btn-suspend:hover { background: #f59e0b; color: #000; }
+    .btn-del {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    .btn-del:hover { background: #ef4444; color: #fff; }
+    .status-pill-active {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .status-pill-suspended {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .form-switch {
+      cursor: pointer;
+      accent-color: #3b82f6;
+      width: 16px;
+      height: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ADMIN AUTH GATE MODAL -->
+  <div id="authGateModal" class="auth-modal-overlay">
+    <div class="auth-card">
+      <div style="font-size: 40px; margin-bottom: 12px;">🛡️</div>
+      <h2 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;">Admin Authentication</h2>
+      <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 20px;">Enter platform master password to access the SaaS executive console.</p>
+      <input type="password" id="adminPasswordInput" placeholder="Enter master password..." style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 12px 14px; color: #fff; font-size: 14px; margin-bottom: 14px; text-align: center;">
+      <button class="btn btn-primary" id="adminLoginBtn" style="width: 100%; justify-content: center; padding: 12px;">Unlock Command Center</button>
+      <p id="authErrorMsg" style="font-size: 12px; color: #f87171; margin-top: 10px; display: none;">Invalid password</p>
+    </div>
+  </div>
+
+  <!-- TOP HEADER -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo" style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div style="display: flex; align-items: center;">
+            <div class="brand-title">OFFICIALUM1</div>
+            <span class="admin-badge">ADMIN CONSOLE</span>
+          </div>
+          <div class="brand-subtitle">Multi-Tenant Platform Operator & Fleet Controller</div>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <a href="/" class="btn btn-secondary btn-sm">
+          👁️ Open Customer Portal
+        </a>
+        <button class="btn btn-danger btn-sm" id="adminLogoutBtn">
+          🔒 Lock Console
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="main-container">
+
+    <!-- GLOBAL FLEET METRICS RIBBON -->
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 24px;">
+      <div class="stat-card">
+        <div class="stat-label">TOTAL CUSTOMERS</div>
+        <div class="stat-val" id="statTotalTenants">0 Accounts</div>
+        <div class="stat-sub"><span id="statActiveTenants" style="color: #34d399;">0 Active</span> subscriptions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">GLOBAL DATA TRANSFERRED</div>
+        <div class="stat-val" id="statGlobalBandwidth">0 MB</div>
+        <div class="stat-sub">Across all connected routers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">TOTAL DNS QUERIES</div>
+        <div class="stat-val" id="statGlobalQueries">0</div>
+        <div class="stat-sub"><span id="statBlockedAds" style="color: #f87171;">0 Ads</span> blocked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">18+ ADULT SHIELDS</div>
+        <div class="stat-val" id="statBlockedAdult" style="color: #c084fc;">0 Blocked</div>
+        <div class="stat-sub">Explicit sites prevented</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">UPSTREAM PROXIES</div>
+        <div class="stat-val" id="statActiveProxies">0 Active</div>
+        <div class="stat-sub">Exit node tunnels</div>
+      </div>
+    </div>
+
+    <!-- TABS BAR -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" data-tab="tenantsTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Customer Subscriptions
+      </button>
+      <button class="tab-btn" data-tab="portsProxiesTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        10 Port Rack & Upstream Proxies
+      </button>
+      <button class="tab-btn" data-tab="globalLogsTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Global Threat Stream
+      </button>
+    </div>
+
+    <!-- TAB 1: CUSTOMER TENANTS & SUBSCRIPTIONS -->
+    <section id="tenantsTab" class="tab-content active">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 class="section-title">Customer Subscriptions & Policy Manager</h2>
+          <p class="section-desc">Manage accounts, renew 30-day billing, trigger paywalls, and toggle customer shields.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" id="openAddTenantModalBtn">
+          ➕ Add New Customer
+        </button>
+      </div>
+
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>CUSTOMER / CONFIG ID</th>
+              <th>PLAN TIER</th>
+              <th>EXPIRY & STATUS</th>
+              <th>ROUTER WAN IP</th>
+              <th>DEVICES</th>
+              <th>QUERIES</th>
+              <th>FEATURE SHIELDS</th>
+              <th style="text-align: right;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="tenantsTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 2: PORTS & UPSTREAM PROXIES -->
+    <section id="portsProxiesTab" class="tab-content">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 class="section-title">Dedicated Ports Matrix (8101 &ndash; 8110) & SOCKS5 Fleet</h2>
+          <p class="section-desc">Manage upstream residential/datacenter exit proxies and assign them to dedicated ports.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" id="openAddProxyModalBtn">
+          ➕ Add SOCKS5 / HTTP Proxy
+        </button>
+      </div>
+
+      <div class="admin-card" style="margin-bottom: 20px;">
+        <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 12px;">Upstream Exit Node Fleet</h3>
+        <div id="proxyFleetList">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>PORT</th>
+              <th>DEVICE / WORKSTATION</th>
+              <th>ASSIGNED PROXY TUNNEL</th>
+              <th>SPEED</th>
+              <th>TOTAL MB</th>
+              <th>STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="adminPortsTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: GLOBAL LOGS STREAM -->
+    <section id="globalLogsTab" class="tab-content">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 class="section-title">Global Fleet Threat Telemetry</h2>
+          <p class="section-desc">Real-time DNS query feed across all connected customer routers and mobiles.</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="clearGlobalLogsBtn">Clear Global Logs</button>
+      </div>
+
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 100px;">TIME</th>
+              <th style="width: 130px;">TENANT</th>
+              <th style="width: 150px;">STATUS</th>
+              <th>DOMAIN</th>
+              <th style="width: 130px;">CLIENT IP</th>
+            </tr>
+          </thead>
+          <tbody id="globalLogsTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ADD TENANT MODAL -->
+  <div class="modal-overlay" id="addTenantModal" style="display: none;">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">➕ Create Customer Account</h3>
+        <button class="modal-close" id="closeAddTenantModalBtn">&times;</button>
+      </div>
+      <form id="addTenantForm">
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">Customer / Household Name:</label>
+            <input type="text" id="newTenantName" class="form-control" placeholder="e.g. Ali Home, Tech Office" required style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff;">
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">Unique Config ID (URL & Hostname Key):</label>
+            <input type="text" id="newTenantId" class="form-control" placeholder="e.g. ali-home, office-tech" required style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #38bdf8; font-family: monospace;">
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">Subscription Plan Tier:</label>
+            <select id="newTenantPlan" style="width: 100%; background: rgba(15,23,42,0.9); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff;">
+              <option value="home_pro">Home Shield Pro (Router DHCP + Adult + Smart TV)</option>
+              <option value="business">Business / Office (Dedicated Tunnel + Priority)</option>
+              <option value="free">Free Trial (7 Days)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">Initial Subscription Duration:</label>
+            <select id="newTenantDays" style="width: 100%; background: rgba(15,23,42,0.9); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff;">
+              <option value="30">30 Days (1 Month)</option>
+              <option value="90">90 Days (3 Months)</option>
+              <option value="365">365 Days (1 Year)</option>
+              <option value="7">7 Days (Trial)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="cancelAddTenantBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Customer Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

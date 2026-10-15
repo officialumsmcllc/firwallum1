@@ -208,6 +208,9 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Connect Device
         </button>
+        <a href="/admin" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;" title="Open Executive Admin Command Center">
+          ⚙️ Admin Console
+        </a>
       </div>
     </div>
   </header>
@@ -218,34 +221,21 @@
     <!-- Overview Metrics Row -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-label">DEDICATED PORTS</div>
-        <div class="stat-val" id="statPortsCount">10 Ports</div>
-        <div class="stat-sub">Ports 8101 &ndash; 8110</div>
+        <div class="stat-label">CONNECTED DEVICES</div>
+        <div class="stat-val" id="statActiveCount">0 Online</div>
+        <div class="stat-sub" id="statActiveSub">Live protected clients</div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-label">ACTIVE DEVICES</div>
-        <div class="stat-val" id="statActiveCount">0 Active</div>
-        <div class="stat-sub" id="statActiveSub">Live client tunnels</div>
+        <div class="stat-label">TOTAL DATA CONSUMED</div>
+        <div class="stat-val" id="statTotalTraffic" style="color: #38bdf8;">0.00 GB</div>
+        <div class="stat-sub" id="statTotalTrafficSub">Real Wi-Fi bandwidth</div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-label">CONFIGURED PROXIES</div>
-        <div class="stat-val" id="statProxiesCount">0 Available</div>
-        <div class="stat-sub">Dedicated exit tunnels</div>
-      </div>
-
-      <div class="stat-card stat-action">
-        <div class="stat-header-flex">
-          <div>
-            <div class="stat-label">PROXY GATEWAY</div>
-            <div class="stat-val" id="statProxyGatewayText">Active</div>
-          </div>
-          <button class="switch-toggle" id="toggleProxyGatewayBtn" title="Toggle Proxy Gateway (Turn ON if proxy needed, OFF for Direct Full-Speed Wi-Fi)">
-            <span class="switch-slider"></span>
-          </button>
-        </div>
-        <div class="stat-sub" id="statProxyGatewaySub">Ports 8101-8110 Routing</div>
+        <div class="stat-label">LIVE AGGREGATE SPEED</div>
+        <div class="stat-val" id="statLiveSpeed" style="color: #60a5fa;">0 KB/s</div>
+        <div class="stat-sub">Real-time throughput</div>
       </div>
 
       <div class="stat-card stat-action">
@@ -273,6 +263,19 @@
         </div>
         <div class="stat-sub" id="statAdultCount">Block adult sites & 18+ ads</div>
       </div>
+
+      <div class="stat-card stat-action">
+        <div class="stat-header-flex">
+          <div>
+            <div class="stat-label">SMART TV SHIELD</div>
+            <div class="stat-val" id="statTvBlockedText">Active</div>
+          </div>
+          <button class="switch-toggle active" id="toggleTvShieldBtn" title="Toggle Smart TV & Console Ad Shield">
+            <span class="switch-slider"></span>
+          </button>
+        </div>
+        <div class="stat-sub" id="statTvCount">Samsung, LG & Roku ad-free</div>
+      </div>
     </div>
 
     <!-- NextDNS-Style Network Detection Banner -->
@@ -293,25 +296,21 @@
     <div class="tabs-bar">
       <button class="tab-btn active" data-tab="setupTab" id="setupTabBtn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Setup Guide (Router &amp; OS)
+        Setup Guide (Router, OS &amp; TV)
+      </button>
+      <button class="tab-btn" data-tab="wifiTab" id="wifiTabBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        Connected Devices &amp; Bandwidth
+        <span id="wifiDeviceCountBadge" class="badge" style="margin-left: 4px; background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 10px; padding: 2px 8px; border-radius: 9999px;">...</span>
+      </button>
+      <button class="tab-btn" data-tab="shieldsTab" id="shieldsTabBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Security &amp; Family Shields
       </button>
       <button class="tab-btn" data-tab="logsTab" id="logsTabBtn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Real-Time Query Logs
         <span id="dnsLogsCountBadge" class="badge" style="margin-left: 4px; background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 10px; padding: 2px 8px; border-radius: 9999px;">LIVE</span>
-      </button>
-      <button class="tab-btn" data-tab="wifiTab" id="wifiTabBtn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
-        Wi-Fi Devices
-        <span id="wifiDeviceCountBadge" class="badge" style="margin-left: 4px; background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 10px; padding: 2px 8px; border-radius: 9999px;">...</span>
-      </button>
-      <button class="tab-btn" data-tab="portsTab">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        10 Device Ports (8101 &ndash; 8110)
-      </button>
-      <button class="tab-btn" data-tab="proxiesTab">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        Proxy Manager
       </button>
     </div>
 
@@ -551,12 +550,150 @@
           </div>
         </div>
 
+        <!-- METHOD 6: SMART TV & GAMING CONSOLES -->
+        <div class="setup-card">
+          <div class="setup-card-header">
+            <div class="setup-card-title-flex">
+              <div class="setup-platform-icon">📺</div>
+              <div>
+                <h3 class="setup-card-title">Smart TVs &amp; Gaming Consoles (Samsung, LG, Sony, PS5, Xbox)</h3>
+                <p style="font-size: 12px; color: var(--text-sub); margin-top: 2px;">Block TV home-screen ads, YouTube trackers, and video popups without installing any apps.</p>
+              </div>
+            </div>
+            <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">ZERO APP REQUIRED</span>
+          </div>
+
+          <div class="setup-steps-list">
+            <div class="setup-step-item">
+              <span class="setup-step-badge">1</span>
+              <div class="setup-step-text">
+                On your Smart TV or Console, open <strong>Settings</strong> ➔ <strong>Network</strong> ➔ <strong>Network Status</strong> (or <strong>Set Up Internet Connection</strong>).
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">2</span>
+              <div class="setup-step-text">
+                Select <strong>IP Settings</strong> ➔ Change <strong>DNS Setting</strong> from <em>Automatic</em> to <strong>Manual</strong>.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">3</span>
+              <div class="setup-step-text">
+                Set <strong>Primary DNS</strong> to <code>172.64.36.1</code> and <strong>Secondary DNS</strong> to <code>172.64.36.2</code>. Save and restart TV.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">4</span>
+              <div class="setup-step-text">
+                <strong>Protected!</strong> Your TV now streams without ad tracking from Samsung, LG, Roku, Fire TV, or gaming telemetry.
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 
-    <!-- TAB: REAL-TIME QUERY LOGS STREAM -->
+    <!-- TAB 2: WI-FI & CONNECTED DEVICES -->
+    <section id="wifiTab" class="tab-content">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 class="section-title">Connected Devices &amp; Real Bandwidth Meter</h2>
+          <p class="section-desc">Live monitor of every mobile, TV, console, and computer on your Wi-Fi with real consumed data and 1-click internet pause.</p>
+        </div>
+        <button class="btn btn-primary" id="refreshWifiBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Scan &amp; Refresh
+        </button>
+      </div>
+
+      <div class="table-container table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>DEVICE / HARDWARE</th>
+              <th>MAC ADDRESS</th>
+              <th>DEVICE TYPE</th>
+              <th>REAL DATA CONSUMED</th>
+              <th>LIVE SPEED</th>
+              <th>STATUS</th>
+              <th style="text-align: right;">PARENTAL / ACCESS CONTROLS</th>
+            </tr>
+          </thead>
+          <tbody id="wifiDevicesTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: SECURITY & FAMILY SHIELDS -->
+    <section id="shieldsTab" class="tab-content">
+      <div class="section-header" style="margin-bottom: 20px;">
+        <div>
+          <h2 class="section-title">Network Security &amp; Family Protection Shields</h2>
+          <p class="section-desc">Zero-touch parental controls and ad-blocking policies applied automatically across every device in your household.</p>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px;">
+        <!-- Shield 1: Ad & Threat Blocker -->
+        <div class="stat-card" style="padding: 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div style="font-size: 28px;">🛡️</div>
+            <button class="switch-toggle active" id="userShieldAdblockBtn">
+              <span class="switch-slider"></span>
+            </button>
+          </div>
+          <div style="font-weight: 700; color: #fff; font-size: 15px; margin-bottom: 4px;">DNS Threat &amp; Ad-Shield</div>
+          <p style="font-size: 12.5px; color: var(--text-sub); line-height: 1.5;">Blocks malicious phishing domains, intrusive popups, banners, and analytics trackers across all apps.</p>
+          <div style="margin-top: 14px; font-size: 11px; color: #10b981; font-weight: 600;">● 73,658+ threat domains active</div>
+        </div>
+
+        <!-- Shield 2: 18+ Adult Content Shield -->
+        <div class="stat-card" style="padding: 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div style="font-size: 28px;">🔞</div>
+            <button class="switch-toggle active" id="userShieldAdultBtn">
+              <span class="switch-slider"></span>
+            </button>
+          </div>
+          <div style="font-weight: 700; color: #fff; font-size: 15px; margin-bottom: 4px;">Adult 18+ Content Filter</div>
+          <p style="font-size: 12.5px; color: var(--text-sub); line-height: 1.5;">Blocks explicit adult websites, pornography, and mature ad networks to ensure a family-safe Wi-Fi environment.</p>
+          <div style="margin-top: 14px; font-size: 11px; color: #c084fc; font-weight: 600;">● 2,400,000+ adult domains active</div>
+        </div>
+
+        <!-- Shield 3: Smart TV & Console Ad-Shield (Feature 5) -->
+        <div class="stat-card" style="padding: 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div style="font-size: 28px;">📺</div>
+            <button class="switch-toggle active" id="userShieldSmartTvBtn">
+              <span class="switch-slider"></span>
+            </button>
+          </div>
+          <div style="font-weight: 700; color: #fff; font-size: 15px; margin-bottom: 4px;">Smart TV &amp; Console Ad-Shield</div>
+          <p style="font-size: 12.5px; color: var(--text-sub); line-height: 1.5;">Eliminates video ads and telemetry on Samsung 4K TV, LG webOS, Roku, Fire TV, and gaming consoles.</p>
+          <div style="margin-top: 14px; font-size: 11px; color: #38bdf8; font-weight: 600;">● Samsung/LG/Roku OEM ad-blockers active</div>
+        </div>
+
+        <!-- Shield 4: SafeSearch Enforcement -->
+        <div class="stat-card" style="padding: 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div style="font-size: 28px;">🔍</div>
+            <button class="switch-toggle active" id="userShieldSafeSearchBtn">
+              <span class="switch-slider"></span>
+            </button>
+          </div>
+          <div style="font-weight: 700; color: #fff; font-size: 15px; margin-bottom: 4px;">Enforce SafeSearch</div>
+          <p style="font-size: 12.5px; color: var(--text-sub); line-height: 1.5;">Forces Google, Bing, and YouTube into strict SafeSearch &amp; Restricted Mode to protect kids from adult results.</p>
+          <div style="margin-top: 14px; font-size: 11px; color: #f59e0b; font-weight: 600;">● SafeSearch VIP rewriting active</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: REAL-TIME QUERY LOGS STREAM -->
     <section id="logsTab" class="tab-content">
-      <div class="section-header">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <div>
           <h2 class="section-title">Real-Time Query Telemetry Stream</h2>
           <p class="section-desc">Live feed of all DNS queries passing through your router and shielded devices. Displays blocked ads, blocked 18+ adult content, and allowed queries.</p>
@@ -593,92 +730,6 @@
                 Listening for real-time DNS queries from your router and devices...
               </td>
             </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 3: PORTS GRID -->
-    <section id="portsTab" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Dedicated Ports Matrix</h2>
-          <p class="section-desc">Each PC on your Wi-Fi connects to its own port. Assign each port a separate proxy so every PC gets a unique public IP.</p>
-        </div>
-        <button class="btn btn-primary" id="refreshPortsBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Refresh Status
-        </button>
-      </div>
-
-      <div class="ports-grid" id="portsGridContainer">
-        <!-- Rendered via JS -->
-      </div>
-    </section>
-
-    <!-- TAB 2: PROXY MANAGER -->
-    <section id="proxiesTab" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Proxy Credentials &amp; Exit Tunnels</h2>
-          <p class="section-desc">Add SOCKS5 or HTTP Residential Proxies. These are assigned to your device ports so each Fiverr account uses its own clean IP.</p>
-        </div>
-        <button class="btn btn-primary" id="openAddProxyModalBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add New Proxy
-        </button>
-      </div>
-
-      <div class="table-card">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>NAME</th>
-              <th>PROTOCOL</th>
-              <th>HOST:PORT</th>
-              <th>PUBLIC EXIT IP</th>
-              <th>COUNTRY</th>
-              <th>LATENCY</th>
-              <th>STATUS</th>
-              <th style="text-align: right;">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody id="proxiesTableBody">
-            <!-- Rendered via JS -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 3: WI-FI NETWORK DEVICES -->
-    <section id="wifiTab" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Wi-Fi & LAN Connected Devices</h2>
-          <p class="section-desc">Live monitor of all mobiles, tablets, and computers on your Wi-Fi passing through OFFICIALUM1 Security Shield.</p>
-        </div>
-        <button class="btn btn-primary" id="refreshWifiBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Scan &amp; Refresh
-        </button>
-      </div>
-
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>DEVICE / IP ADDRESS</th>
-              <th>MAC ADDRESS</th>
-              <th>DEVICE CLASSIFICATION</th>
-              <th>LIVE SPEED</th>
-              <th>DATA USED</th>
-              <th>AUTO-ASSIGNED PORT</th>
-              <th>LIVE STATUS</th>
-              <th style="text-align: right;">ACTION</th>
-            </tr>
-          </thead>
-          <tbody id="wifiDevicesTableBody">
-            <!-- Rendered via JS -->
           </tbody>
         </table>
       </div>

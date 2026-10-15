@@ -226,7 +226,7 @@ class DnsFirewall:
         if addr and addr[0]:
             from core.store import traffic_tracker
             traffic_tracker.record(addr[0], len(data))
-            if self.store.is_client_blocked(addr[0]):
+            if self.store.is_client_blocked(addr[0]) or self.store.is_client_paused(addr[0]):
                 try:
                     req = DNSRecord.parse(data)
                     reply = req.reply()
@@ -239,7 +239,7 @@ class DnsFirewall:
 
             with self._client_lock:
                 self.live_clients[addr[0]] = time.time()
-        resp = self._process_packet(data)
+        resp = self._process_packet(data, client_ip=addr[0] if addr else "127.0.0.1")
         if resp and self.udp_sock and self.running:
             try:
                 self.udp_sock.sendto(resp, addr)
@@ -249,7 +249,7 @@ class DnsFirewall:
 
     def _handle_tcp(self, client: socket.socket, addr: Tuple[str, int]):
         if addr and addr[0]:
-            if self.store.is_client_blocked(addr[0]):
+            if self.store.is_client_blocked(addr[0]) or self.store.is_client_paused(addr[0]):
                 try: client.close()
                 except Exception: pass
                 return
@@ -310,6 +310,33 @@ class DnsFirewall:
 
         # Lookup configuration for this linked client IP
         config_id = self.store.get_config_for_ip(client_ip)
+
+        # 0. Subscription Paywall & Expiry Check (Feature 3)
+        if not self.store.is_config_active(config_id):
+            self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_EXPIRED", device_name=device_name, config_id=config_id)
+            reply = req.reply()
+            # Redirect to Cloud Hub so browser displays /expired paywall screen
+            reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("172.64.36.1"), ttl=30))
+            return reply.pack()
+
+        # 0a. Device 1-Click Internet Pause
+        if self.store.is_client_paused(client_ip):
+            self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_PAUSED", device_name=device_name, config_id=config_id)
+            reply = req.reply()
+            reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=10))
+            return reply.pack()
+
+        # 0b. Smart TV Telemetry & Ad-Block Shield (Feature 5)
+        smart_tv_trackers = (
+            "samsungcloudplatform.com", "samsungqbe.com", "log-config.samsungcloudcdn.com",
+            "ssp.samsung.com", "ads.samsung.com", "lgsmartad.com", "lgtvcommon.com",
+            "scribe.logs.roku.com", "logs.roku.com", "firetv-ad.amazon.com", "device-metrics-us.amazon.com"
+        )
+        if any(qname == st or qname.endswith("." + st) for st in smart_tv_trackers):
+            self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_SMART_TV", device_name=device_name, config_id=config_id)
+            reply = req.reply()
+            reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
+            return reply.pack()
 
         # 1. Adblock check
         settings = self.store.get_settings()
