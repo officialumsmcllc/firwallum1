@@ -34,9 +34,10 @@ Follow these steps to launch the cloud engine 24/7 on Render:
    👉 **`https://officialum1-hub.onrender.com`**
 
 > **Your Cloud Firewall Endpoints:**
-> * **Web Management Dashboard:** `https://officialum1-hub.onrender.com/`
-> * **DNS-over-HTTPS (DoH) Endpoint:** `https://officialum1-hub.onrender.com/dns-query`
-> * **Smart PAC Script:** `https://officialum1-hub.onrender.com/proxy.pac`
+> * **Custom Domain:** `https://hub.officialum1.com/` (Mapped to `firwallum1.onrender.com`)
+> * **Direct Render Dashboard:** `https://firwallum1.onrender.com/`
+> * **DNS-over-HTTPS (DoH) Endpoint:** `https://hub.officialum1.com/dns-query` (or `https://firwallum1.onrender.com/dns-query`)
+> * **Smart PAC Script:** `https://hub.officialum1.com/proxy.pac`
 
 ---
 
