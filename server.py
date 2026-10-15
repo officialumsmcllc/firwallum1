@@ -34,6 +34,18 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
     # Register Clean API Blueprint
     app.register_blueprint(create_api_blueprint(store, dns_firewall))
 
+    # Anti-Index & Privacy Shield: Prevent Google, Bing & spiders from indexing personal hub
+    @app.after_request
+    def set_privacy_headers(response):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
+
+    @app.route("/robots.txt")
+    def robots():
+        return send_from_directory(STATIC_DIR, "robots.txt")
+
     @app.route("/")
     def index():
         return send_from_directory(STATIC_DIR, "index.html")

@@ -1,0 +1,16 @@
+# Strict Private Security Configuration
+# Disallow all search engine crawlers from indexing this personal hub
+User-agent: *
+Disallow: /
+
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
