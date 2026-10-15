@@ -638,13 +638,17 @@ body {
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  margin-bottom: 24px;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  min-width: 640px;
 }
 
 .data-table th {
@@ -1239,15 +1243,34 @@ body {
   font-size: 12px;
 }
 
-/* ========== RESPONSIVE ========== */
+/* ========== COMPREHENSIVE RESPONSIVE DESIGN (DESKTOP, TABLET, MOBILE) ========== */
+
+/* TABLETS & SMALL LAPTOPS (max-width: 1024px) */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .setup-endpoints-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* TABLETS & PHABLETS (max-width: 768px) */
 @media (max-width: 768px) {
   .header-container {
     flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .brand {
+    justify-content: flex-start;
   }
 
   .header-status {
+    width: 100%;
+    justify-content: space-between;
     flex-wrap: wrap;
     gap: 8px;
   }
@@ -1261,32 +1284,196 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .main-container {
+    padding: 0 12px;
+    margin: 14px auto;
+  }
+
+  /* NextDNS Status Banner */
+  .nextdns-status-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .banner-actions {
+    width: 100%;
+  }
+
+  .banner-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Setup Tab */
+  .setup-hero-status {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .linked-ip-box {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .setup-endpoints-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .setup-card {
+    padding: 18px 16px;
+  }
+
+  .setup-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .setup-badge-recommended {
+    align-self: flex-start;
+  }
+
+  /* Tabs Bar Horizontal Touch Scrolling */
   .tabs-bar {
-    gap: 2px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-bottom: 20px;
+  }
+
+  .tabs-bar::-webkit-scrollbar {
+    display: none;
   }
 
   .tab-btn {
     padding: 10px 14px;
     font-size: 12px;
-  }
-
-  .main-container {
-    padding: 0 12px;
-    margin: 16px auto;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .section-header {
     flex-direction: column;
-    gap: 10px;
+    align-items: flex-start;
+    gap: 12px;
   }
 }
 
+/* MOBILE PHONES (max-width: 480px) */
 @media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+
+  .app-header {
+    padding: 12px 14px;
+  }
+
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .brand-title {
+    font-size: 15px;
+  }
+
+  .brand-subtitle {
+    font-size: 10px;
+  }
+
+  .header-status {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .header-status .status-pill,
+  .header-status .uptime-pill,
+  .header-status .ip-pill,
+  .header-status .btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 11px;
+    padding: 6px 8px;
+    text-align: center;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
-  
-  .app-header {
-    padding: 12px 16px;
+
+  .stat-card {
+    padding: 14px;
+  }
+
+  .setup-card {
+    padding: 14px 12px;
+  }
+
+  .setup-step-item {
+    gap: 10px;
+  }
+
+  .setup-step-text {
+    font-size: 12px;
+  }
+
+  .setup-callout {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .chip-val {
+    font-size: 11px;
+  }
+
+  /* Modals on Mobile */
+  .modal-dialog {
+    width: 95% !important;
+    max-width: 95% !important;
+    padding: 16px !important;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 10px auto;
+  }
+
+  /* Toast notification on Mobile */
+  .toast-box {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) translateY(20px);
+    width: 92% !important;
+    max-width: 380px !important;
+    font-size: 12px;
+    padding: 10px 14px;
+    text-align: center;
+  }
+
+  .toast-box.show {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* EXTRA SMALL MOBILES (max-width: 360px - iPhone SE / Fold) */
+@media (max-width: 360px) {
+  .header-status {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-title {
+    font-size: 14px;
+  }
+
+  .tab-btn {
+    padding: 8px 10px;
+    font-size: 11px;
   }
 }
