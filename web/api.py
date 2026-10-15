@@ -197,12 +197,14 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
 
     @api.route("/wifi-devices", methods=["GET"])
     def get_wifi_devices():
-        _trigger_subnet_sweep()
-        devices = []
-        seen_ips = set()
         dns_clients = dns_firewall.get_active_clients(timeout_sec=600) if dns_firewall else []
         hub_ip = store.get_settings().get("hub_ip", "192.168.100.158")
 
+        # 1. Start with persistent Router & Wi-Fi inventory from store
+        stored_devs = store.get_wifi_devices()
+        dev_map = {d["ip"]: dict(d) for d in stored_devs}
+
+        # 2. Add/update dynamic ARP clients if on local Windows
         import platform
         if platform.system() == "Windows":
             try:
@@ -214,50 +216,44 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
                         mac = parts[1].replace("-", ":").upper()
                         ip_type = parts[2]
                         if ip_type.lower() == "dynamic" and ip not in ("192.168.100.1", hub_ip):
-                            is_active = (ip in dns_clients) or True
                             info = KNOWN_DEVICE_MAP.get(mac, {})
                             dev_name = info.get("name", f"Wi-Fi Client ({ip})")
                             dev_type = info.get("type", "Wireless Mobile / PC")
-                            devices.append({
-                                "ip": ip,
-                                "mac": mac,
-                                "name": dev_name,
-                                "type": dev_type,
-                                "status": "SHIELDED",
-                                "dns_active": is_active
-                            })
-                            seen_ips.add(ip)
+                            store.upsert_wifi_device(ip=ip, name=dev_name, mac=mac, dev_type=dev_type)
+                            dev_map[ip] = {
+                                "ip": ip, "mac": mac, "name": dev_name, "type": dev_type,
+                                "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(ip)
+                            }
             except Exception:
                 pass
 
+        # 3. Add live cloud DNS clients
         for raw_entry in dns_clients:
-            if raw_entry not in seen_ips and raw_entry not in ("192.168.100.1", hub_ip, "127.0.0.1", "::1"):
+            if raw_entry not in ("192.168.100.1", hub_ip, "127.0.0.1", "::1"):
                 parts = raw_entry.split(" - ")
                 dev_ip = parts[0]
                 dev_name = parts[1] if len(parts) > 1 else f"Wi-Fi Client ({dev_ip})"
                 dev_type = "Named Mobile / PC" if len(parts) > 1 else "Active Wi-Fi Device"
-                devices.append({
-                    "ip": raw_entry,
-                    "mac": "--",
-                    "name": dev_name,
-                    "type": dev_type,
-                    "status": "SHIELDED",
-                    "dns_active": True
-                })
-                seen_ips.add(raw_entry)
+                store.upsert_wifi_device(ip=raw_entry, name=dev_name, mac="--", dev_type=dev_type)
+                dev_map[raw_entry] = {
+                    "ip": raw_entry, "mac": "--", "name": dev_name, "type": dev_type,
+                    "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(raw_entry)
+                }
 
         from core.store import traffic_tracker
-        for d in devices:
+        devices = []
+        for ip, d in dev_map.items():
             is_blk = store.is_client_blocked(d["ip"])
             st = traffic_tracker.get_stats(d["ip"])
             d["is_blocked"] = is_blk
             d["status"] = "BLOCKED" if is_blk else "SHIELDED"
             d["speed_kbps"] = st["speed_kbps"]
             d["total_mb"] = st["total_mb"]
-            d["assigned_port"] = store.get_port_for_client_ip(d["ip"])
+            d["assigned_port"] = d.get("assigned_port") or store.get_port_for_client_ip(d["ip"])
+            devices.append(d)
 
-        # Sort nicely by IP
-        devices.sort(key=lambda d: [int(x) if x.isdigit() else 0 for x in d["ip"].split(".")])
+        # Sort nicely: first unblocked, then by name
+        devices.sort(key=lambda d: (1 if d["is_blocked"] else 0, d["name"]))
 
         return jsonify({
             "devices": devices,
