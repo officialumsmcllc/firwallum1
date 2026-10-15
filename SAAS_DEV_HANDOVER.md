@@ -79,11 +79,42 @@
   - `linked_ips` table matches customer router public IP (e.g. `103.72.2.41`) to `config_id`.
   - Zero-touch protection: Any device connecting to customer's Wi-Fi router inherits their subscription shields automatically.
 
+### ✅ Feature 7: SaaS Customer Authentication & Admin User Accounts Management
+- **Implementation:**
+  - **PBKDF2 Password Hashing & Salts**: Secure password derivation in `core/store.py` (`100,000` iterations SHA-256 + cryptographic salts).
+  - **Customer Portal Authentication (`/login`)**:
+    - Ultra-premium dynamic HTML5 canvas background simulating network traffic, nodes, and live data packets with mouse interactivity.
+    - Dual modes: **Login** & **Register New Account**.
+    - Tier selection: `Home Shield Pro` vs `Enterprise Business`.
+    - Instant 1-Click Demo Login (`demo` / `demo123`).
+    - Guest Mode option (`/?guest=1`) allowing public viewing of setup guides.
+    - Auto-provisioning of dedicated tenant security profile (`cfg_<username>`) with 30-day initial validity upon registration.
+  - **Customer Dashboard Session Protection (`/`)**:
+    - Unauthenticated requests safely redirect to `/login`.
+    - Profile badge and logout button in navigation bar with plan tier indicator.
+  - **Admin Console User Management (`/admin`)**:
+    - **Customer User Accounts Tab**: Full listing of registered subscribers, emails, linked tenant profiles, plan tiers, and registration dates.
+    - **🔑 Reset Password Modal**: Admin can override and update customer passwords directly.
+    - **⚡ Upgrade Account Tier Modal**: Admin can upgrade plan tiers (`home_pro`, `business`, `isp`) and extend subscriptions (+30d, +90d, +365d, or lifetime).
+  - **REST APIs**:
+    - `POST /api/auth/login` (Token issuance)
+    - `POST /api/auth/register` (Auto-tenant provision)
+    - `GET /api/admin/users` (Fleet users query)
+    - `POST /api/admin/users/<id>/reset-password` (Admin password reset)
+    - `POST /api/admin/users/<id>/upgrade` (Admin plan tier upgrade)
+
 ---
 
 ## 🧪 2. Test & Verification Evidence
 
-All endpoints verified with automated Python test suite:
+All endpoints verified with automated Python test suite (`test_e2e_saas.py`):
+- `GET /login` ➔ **200 OK**
+- `POST /api/auth/login` (demo/demo123) ➔ **200 OK** (Session token & profile returned)
+- `POST /api/auth/login` (bad pass) ➔ **401 Unauthorized** (Correctly blocked)
+- `POST /api/auth/register` ➔ **201 Created** (Auto-provisioned `config_id`)
+- `GET /api/admin/users` ➔ **200 OK** (Lists all registered customers)
+- `POST /api/admin/users/<id>/reset-password` ➔ **200 OK**
+- `POST /api/admin/users/<id>/upgrade` ➔ **200 OK** (Upgrades tier & extends expiry)
 - `GET /` ➔ **200 OK**
 - `GET /admin` ➔ **200 OK**
 - `GET /expired` ➔ **200 OK**

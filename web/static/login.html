@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFFICIALUM1 — Security Gateway & Network Access</title>
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: rgba(13, 17, 28, 0.78);
+      --card-border: rgba(56, 189, 248, 0.22);
+      --card-glow: rgba(56, 189, 248, 0.12);
+      --cyan: #38bdf8;
+      --cyan-glow: #0284c7;
+      --emerald: #10b981;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --input-bg: rgba(15, 23, 42, 0.7);
+      --input-border: rgba(148, 163, 184, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Full-screen dynamic networking canvas */
+    #networkCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      pointer-events: auto;
+    }
+
+    /* Ambient cyber gradient layer */
+    .cyber-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      background: radial-gradient(circle at 50% 30%, rgba(14, 165, 233, 0.08) 0%, transparent 60%),
+                  radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+                  radial-gradient(circle at 20% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* Top Global Telemetry Banner */
+    .top-telemetry {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 32px;
+      backdrop-filter: blur(12px);
+      background: rgba(7, 9, 14, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .brand-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #0284c7, #6366f1);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+    }
+
+    .brand-text h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.8px;
+    }
+
+    .network-status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 999px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #34d399;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Main Container */
+    .portal-main {
+      position: relative;
+      z-index: 10;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 460px;
+      background: var(--card-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 40px var(--card-glow);
+      overflow: hidden;
+      animation: floatUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes floatUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Top Cyber Strip */
+    .card-accent-line {
+      height: 3px;
+      width: 100%;
+      background: linear-gradient(90deg, #38bdf8, #6366f1, #a855f7);
+    }
+
+    /* Tab Switcher */
+    .tab-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: rgba(15, 23, 42, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .tab-btn {
+      padding: 16px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.25s ease;
+      font-family: inherit;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-btn.active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+      border-bottom: 2px solid #38bdf8;
+    }
+
+    .auth-body {
+      padding: 32px 36px 36px;
+    }
+
+    .form-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+      letter-spacing: -0.3px;
+    }
+
+    .form-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      margin-bottom: 18px;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 7px;
+      letter-spacing: 0.2px;
+    }
+
+    .input-field-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      font-size: 15px;
+      color: #64748b;
+      pointer-events: none;
+    }
+
+    .input-field {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      padding: 13px 14px 13px 42px;
+      color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.25s ease;
+      outline: none;
+    }
+
+    .input-field:focus {
+      border-color: #38bdf8;
+      background: rgba(15, 23, 42, 0.9);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .input-field::placeholder {
+      color: #475569;
+    }
+
+    .tier-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .tier-option {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(15, 23, 42, 0.6);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .tier-option:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .tier-option.selected {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+    }
+
+    .tier-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tier-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* Submit Button */
+    .btn-submit {
+      width: 100%;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 24px;
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.35);
+      transition: all 0.25s ease;
+      font-family: inherit;
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(2, 132, 199, 0.5);
+      filter: brightness(1.1);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    /* Demo Bypass Link */
+    .demo-bypass-wrapper {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      text-align: center;
+    }
+
+    .btn-demo-link {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(56, 189, 248, 0.4);
+      color: #7dd3fc;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-demo-link:hover {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: #38bdf8;
+      color: #fff;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+    }
+
+    /* Feedback message banner */
+    .msg-banner {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .msg-banner.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
+    .msg-banner.success {
+      display: block;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Footer Telemetry Specs */
+    .portal-footer {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 16px 20px 24px;
+      font-size: 12px;
+      color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .portal-footer span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Hidden utility */
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- High-Performance Networking Mesh Canvas -->
+  <canvas id="networkCanvas"></canvas>
+  <div class="cyber-backdrop"></div>
+
+  <!-- Top Real-Time Telemetry Bar -->
+  <header class="top-telemetry">
+    <div class="brand-pill">
+      <div class="brand-icon">🛡️</div>
+      <div class="brand-text">
+        <h1>OFFICIALUM1</h1>
+        <p>SECURE ROUTER GATEWAY & SAAS MESH</p>
+      </div>
+    </div>
+    <div class="network-status-badge">
+      <div class="pulse-dot"></div>
+      <span>EDGE NODE: 172.64.36.1 [ONLINE]</span>
+    </div>
+  </header>
+
+  <!-- Central Authentication Portal -->
+  <main class="portal-main">
+    <div class="auth-card">
+      <div class="card-accent-line"></div>
+
+      <!-- Tab Buttons -->
+      <div class="tab-header">
+        <button id="tabLoginBtn" class="tab-btn active" onclick="switchTab('login')">
+          <span>🔒</span> Sign In
+        </button>
+        <button id="tabSignupBtn" class="tab-btn" onclick="switchTab('signup')">
+          <span>🛡️</span> Create Account
+        </button>
+      </div>
+
+      <!-- Feedback Alert -->
+      <div class="auth-body">
+        <div id="msgBanner" class="msg-banner"></div>
+
+        <!-- ================= SIGN IN FORM ================= -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <h2 class="form-title">Customer Sign In</h2>
+          <p class="form-subtitle">Enter your account credentials to access your protected router dashboard and network analytics.</p>
+
+          <div class="input-group">
+            <label class="input-label" for="loginUser">Username or Email</label>
+            <div class="input-field-wrapper">
+              <span class="input-icon">👤</span>
+              <input type="text" id="loginUser" class="input-field" placeholder="e.g. demo or client@domain.com" required autocomplete="username">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="loginPass">Password</label>
+            <div class="input-field-wrapper">
+              <span class="input-icon">🔑</span>
+              <input type="password" id="loginPass" class="input-field" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+          </div>
+
+          <button type="submit" id="loginSubmitBtn" class="btn-submit">
+            <span>Connect to Network</span> ⚡
+          </button>
+
+          <div class="demo-bypass-wrapper">
+            <button type="button" class="btn-demo-link" onclick="handleInstantDemo()">
+              <span>⚡ 1-Click Instant Demo Login (demo / demo123)</span>
+            </button>
+            <div style="margin-top: 10px; text-align: center;">
+              <a href="/?guest=1" style="font-size: 11.5px; color: #94a3b8; text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='#38bdf8'" onmouseout="this.style.color='#94a3b8'">
+                Or explore public router setup guides as Guest →
+              </a>
+            </div>
+          </div>
+        </form>
+
+        <!-- ================= CREATE ACCOUNT FORM ================= -->
+        <form id="signupForm" class="hidden" onsubmit="handleRegister(event)">
+          <h2 class="form-title">Create New Account</h2>
+          <p class="form-subtitle">Provision your dedicated router security profile, ad-blocking shields, and real-time speed meter.</p>
+
+          <div class="input-group">
+            <label class="input-label" for="regFullName">Full Name / House Name</label>
+            <div class="input-field-wrapper">
+              <span class="input-icon">🏠</span>
+              <input type="text" id="regFullName" class="input-field" placeholder="e.g. Ali Ahmed (Home)" required>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="regUsername">Desired Username</label>
+            <div class="input-field-wrapper">
+              <span class="input-icon">👤</span>
+              <input type="text" id="regUsername" class="input-field" placeholder="e.g. alihome" required autocomplete="username">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="regEmail">Email Address</label>
+            <div class="input-field-wrapper">
+              <span class="input-icon">✉️</span>
+              <input type="email" id="regEmail" class="input-field" placeholder="e.g. ali@example.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="regPassword">Password (Min 4 characters)</label>
+            <div class="input-field-wrapper">
+              <span class="input-icon">🔑</span>
+              <input type="password" id="regPassword" class="input-field" placeholder="••••••••" required autocomplete="new-password">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Select Protection Tier</label>
+            <div class="tier-selector">
+              <div class="tier-option selected" id="tierHome" onclick="selectTier('home_pro')">
+                <div class="tier-title">🛡️ Home Shield Pro</div>
+                <div class="tier-desc">Router Ad-Block + Smart TV</div>
+              </div>
+              <div class="tier-option" id="tierBiz" onclick="selectTier('business')">
+                <div class="tier-title">🏢 Enterprise</div>
+                <div class="tier-desc">Multi-LAN + Port Tunneling</div>
+              </div>
+            </div>
+            <input type="hidden" id="regTier" value="home_pro">
+          </div>
+
+          <button type="submit" id="regSubmitBtn" class="btn-submit">
+            <span>Deploy My Security Profile</span> 🚀
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer Telemetry -->
+  <footer class="portal-footer">
+    <span>🔒 256-BIT ENCRYPTION</span>
+    <span>⚡ ANYCAST LATENCY: 0.8ms</span>
+    <span>🛡️ SMART TV & CONSOLE SHIELD READY</span>
+    <span><a href="/admin" style="color: #64748b; text-decoration: none;">⚙️ Admin Access</a></span>
+  </footer>
+
+  <script src="login.js?v=20261015-saas-v1"></script>
+</body>
+</html>

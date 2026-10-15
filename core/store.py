@@ -8,6 +8,8 @@ import sqlite3
 import time
 import socket
 import threading
+import hashlib
+import secrets
 from typing import List, Dict, Any, Optional
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -196,6 +198,24 @@ class HubStore:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_time ON dns_logs(timestamp DESC);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_cfg ON dns_logs(config_id, timestamp DESC);")
 
+            # 10. SaaS Customer Accounts & Authentication Table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    salt TEXT NOT NULL,
+                    full_name TEXT DEFAULT '',
+                    role TEXT DEFAULT 'customer',
+                    config_id TEXT DEFAULT 'default',
+                    plan_tier TEXT DEFAULT 'home_pro',
+                    status TEXT DEFAULT 'active',
+                    created_at REAL NOT NULL,
+                    last_login REAL DEFAULT 0
+                );
+            """)
+
             # --- DYNAMIC SCHEMA MIGRATIONS (Preserves existing data) ---
             cfg_cols = [r["name"] for r in conn.execute("PRAGMA table_info(configurations);").fetchall()]
             for col, ctype, cdef in [
@@ -278,6 +298,16 @@ class HubStore:
                 INSERT OR IGNORE INTO linked_ips (ip, config_id, auto_link, updated_at)
                 VALUES ('103.72.2.41', 'default', 1, ?);
             """, (time.time(),))
+
+            # Seed default demo customer if users table is empty
+            user_cnt = conn.execute("SELECT COUNT(*) FROM users;").fetchone()[0]
+            if user_cnt == 0:
+                demo_salt = secrets.token_hex(16)
+                demo_hash = hashlib.pbkdf2_hmac("sha256", "demo123".encode("utf-8"), demo_salt.encode("utf-8"), 100000).hex()
+                conn.execute("""
+                    INSERT INTO users (username, email, password_hash, salt, full_name, role, config_id, plan_tier, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """, ("demo", "demo@officialum1.com", demo_hash, demo_salt, "Demo Subscriber", "customer", "default", "home_pro", "active", time.time()))
 
             conn.commit()
 
@@ -512,6 +542,12 @@ class HubStore:
             conn.commit()
             return {"id": config_id, "name": name, "adblock_enabled": 1, "adult_block_enabled": 1, "status": "active", "expires_at": expires}
 
+    def get_tenant(self, config_id: str) -> Optional[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT * FROM configurations WHERE id = ?;", (config_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
     def get_all_tenants(self) -> List[Dict[str, Any]]:
         with self._get_conn() as conn:
             cur = conn.execute("""
@@ -702,6 +738,158 @@ class HubStore:
             else:
                 conn.execute("DELETE FROM dns_logs;")
             conn.commit()
+
+    # --- SaaS Customer Accounts & Authentication Management ---
+    @staticmethod
+    def hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
+        salt_val = salt or secrets.token_hex(16)
+        pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt_val.encode("utf-8"), 100000).hex()
+        return pwd_hash, salt_val
+
+    def create_user(self, username: str, email: str, password: str, full_name: str = "", plan_tier: str = "home_pro", role: str = "customer") -> Dict[str, Any]:
+        username = username.strip().lower()
+        email = email.strip().lower()
+        if not username or not email or not password:
+            raise ValueError("Username, email, and password are required.")
+
+        import re
+        clean_name = re.sub(r'[^a-z0-9_]', '', username)
+        config_id = f"cfg_{clean_name}" if clean_name else f"cfg_{secrets.token_hex(4)}"
+
+        pwd_hash, salt = self.hash_password(password)
+        now = time.time()
+        expires = now + (30 * 86400) # 30 days subscription
+
+        with self._get_conn() as conn:
+            # Check existing
+            exist = conn.execute("SELECT id FROM users WHERE username = ? OR email = ?;", (username, email)).fetchone()
+            if exist:
+                raise ValueError("An account with this username or email already exists.")
+
+            cur = conn.execute("""
+                INSERT INTO users (username, email, password_hash, salt, full_name, role, config_id, plan_tier, status, created_at, last_login)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0);
+            """, (username, email, pwd_hash, salt, full_name or username.title(), role, config_id, plan_tier, now))
+            user_id = cur.lastrowid
+
+            # Also provision dedicated tenant configuration profile
+            conn.execute("""
+                INSERT OR IGNORE INTO configurations (id, name, owner_name, owner_email, plan_tier, status, adblock_enabled, adult_block_enabled, smart_tv_shield, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, 'active', 1, 1, 1, ?, ?);
+            """, (config_id, f"{full_name or username.title()}'s Shield", full_name or username.title(), email, plan_tier, now, expires))
+            conn.commit()
+
+        token = secrets.token_hex(24)
+        return {
+            "id": user_id,
+            "username": username,
+            "email": email,
+            "full_name": full_name or username.title(),
+            "role": role,
+            "config_id": config_id,
+            "plan_tier": plan_tier,
+            "status": "active",
+            "token": token
+        }
+
+    def authenticate_user(self, username_or_email: str, password: str) -> Optional[Dict[str, Any]]:
+        target = username_or_email.strip().lower()
+        if not target or not password:
+            return None
+
+        with self._get_conn() as conn:
+            row = conn.execute("""
+                SELECT id, username, email, password_hash, salt, full_name, role, config_id, plan_tier, status, created_at
+                FROM users
+                WHERE lower(username) = ? OR lower(email) = ?;
+            """, (target, target)).fetchone()
+
+            if not row:
+                return None
+
+            user = dict(row)
+            check_hash, _ = self.hash_password(password, user["salt"])
+            if check_hash != user["password_hash"]:
+                return None
+
+            # Update last login
+            conn.execute("UPDATE users SET last_login = ? WHERE id = ?;", (time.time(), user["id"]))
+            conn.commit()
+
+        token = secrets.token_hex(24)
+        return {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["email"],
+            "full_name": user["full_name"],
+            "role": user["role"],
+            "config_id": user["config_id"],
+            "plan_tier": user["plan_tier"],
+            "status": user["status"],
+            "token": token
+        }
+
+    def get_all_users(self) -> List[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            cur = conn.execute("""
+                SELECT u.id, u.username, u.email, u.full_name, u.role, u.config_id, u.plan_tier, u.status, u.created_at, u.last_login,
+                       c.expires_at, c.status as config_status
+                FROM users u
+                LEFT JOIN configurations c ON u.config_id = c.id
+                ORDER BY u.id DESC;
+            """)
+            return [dict(r) for r in cur.fetchall()]
+
+    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            row = conn.execute("""
+                SELECT id, username, email, full_name, role, config_id, plan_tier, status, created_at, last_login
+                FROM users WHERE id = ?;
+            """, (user_id,)).fetchone()
+            return dict(row) if row else None
+
+    def admin_reset_user_password(self, user_id: int, new_password: str) -> bool:
+        if not new_password or len(new_password) < 4:
+            raise ValueError("New password must be at least 4 characters.")
+        new_hash, new_salt = self.hash_password(new_password)
+        with self._get_conn() as conn:
+            cur = conn.execute("""
+                UPDATE users
+                SET password_hash = ?, salt = ?
+                WHERE id = ?;
+            """, (new_hash, new_salt, user_id))
+            conn.commit()
+            return cur.rowcount > 0
+
+    def admin_upgrade_user(self, user_id: int, new_plan_tier: str, extend_days: int = 30) -> bool:
+        with self._get_conn() as conn:
+            user_row = conn.execute("SELECT config_id FROM users WHERE id = ?;", (user_id,)).fetchone()
+            if not user_row:
+                return False
+            config_id = user_row["config_id"]
+
+            now = time.time()
+            if extend_days < 0:
+                new_expiry = 9999999999.0 # Lifetime
+            else:
+                # Extend from max of now or existing expiry
+                cur_exp = conn.execute("SELECT expires_at FROM configurations WHERE id = ?;", (config_id,)).fetchone()
+                base_time = max(now, cur_exp["expires_at"]) if cur_exp and cur_exp["expires_at"] else now
+                new_expiry = base_time + (extend_days * 86400)
+
+            conn.execute("""
+                UPDATE users
+                SET plan_tier = ?, status = 'active'
+                WHERE id = ?;
+            """, (new_plan_tier, user_id))
+
+            conn.execute("""
+                UPDATE configurations
+                SET plan_tier = ?, status = 'active', expires_at = ?
+                WHERE id = ?;
+            """, (new_plan_tier, new_expiry, config_id))
+            conn.commit()
+            return True
 
 class TrafficTracker:
     """Real-time throughput and persistent data usage meter per IP & Port."""

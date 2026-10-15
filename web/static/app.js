@@ -8,8 +8,45 @@
 
   // Extract config_id from URL (?config=xyz) or localStorage
   const urlParams = new URLSearchParams(window.location.search);
+  const token = localStorage.getItem('um1_user_token');
+  const isGuest = urlParams.get('guest') === '1';
+
+  // Authentication check: redirect to /login if not authenticated
+  if (!token && !isGuest) {
+    window.location.href = '/login';
+    return;
+  }
+
   const currentConfigId = urlParams.get('config') || localStorage.getItem('um1_user_config_id') || 'default';
   localStorage.setItem('um1_user_config_id', currentConfigId);
+
+  // Setup user profile badge
+  try {
+    const rawUser = localStorage.getItem('um1_user_info');
+    const nameEl = document.getElementById('navUserName');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (rawUser && token) {
+      const u = JSON.parse(rawUser);
+      if (nameEl) {
+        nameEl.textContent = `${u.full_name || u.username} [${(u.plan_tier || 'PRO').toUpperCase()}]`;
+      }
+    } else if (isGuest) {
+      if (nameEl) nameEl.textContent = 'Guest Visitor';
+      if (logoutBtn) {
+        logoutBtn.textContent = '🔑 Log In';
+        logoutBtn.style.background = 'rgba(56, 189, 248, 0.2)';
+        logoutBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+        logoutBtn.style.color = '#38bdf8';
+      }
+    }
+  } catch (e) {}
+
+  window.handleLogout = function () {
+    localStorage.removeItem('um1_user_token');
+    localStorage.removeItem('um1_user_info');
+    localStorage.removeItem('um1_user_config_id');
+    window.location.href = '/login';
+  };
 
   let currentHubIp = '172.64.36.1';
   const startTime = Date.now();

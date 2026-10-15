@@ -60,6 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('active');
       const target = document.getElementById(btn.dataset.tab);
       if (target) target.classList.add('active');
+
+      if (btn.dataset.tab === 'usersTab') fetchUsers();
+      if (btn.dataset.tab === 'tenantsTab') fetchTenants();
+      if (btn.dataset.tab === 'portsProxiesTab') fetchPortsAndProxies();
+      if (btn.dataset.tab === 'globalLogsTab') fetchGlobalLogs();
     });
   });
 
@@ -67,11 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function initAdminDashboard() {
     fetchOverview();
     fetchTenants();
+    fetchUsers();
     fetchPortsAndProxies();
     fetchGlobalLogs();
 
     setInterval(fetchOverview, 4000);
     setInterval(fetchTenants, 6000);
+    setInterval(fetchUsers, 6000);
     setInterval(fetchGlobalLogs, 3000);
   }
 
@@ -318,6 +325,183 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetch('/api/dns-logs/clear?id=all', { method: 'POST' });
     fetchGlobalLogs();
   });
+
+  // =========================================================================
+  // 5. CUSTOMER USER ACCOUNTS & CREDENTIALS
+  // =========================================================================
+
+  async function fetchUsers() {
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      const users = data.users || [];
+
+      // Update counters
+      const totalEl = document.getElementById('statTotalUsers');
+      const activeEl = document.getElementById('statActiveUsers');
+      if (totalEl) totalEl.textContent = `${users.length} Users`;
+      if (activeEl) {
+        const activeCount = users.filter(u => u.status === 'active').length;
+        activeEl.textContent = `${activeCount} Active`;
+      }
+
+      const tbody = document.getElementById('usersTableBody');
+      if (!tbody) return;
+
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-sub); padding: 24px;">No customer accounts registered yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = users.map((u, idx) => {
+        const isAct = u.status === 'active';
+        const statusBadge = isAct
+          ? '<span class="status-pill-active">● ACTIVE</span>'
+          : '<span class="status-pill-suspended">● SUSPENDED</span>';
+
+        const tierBadge = `<span class="badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; font-size: 11px; font-weight: 700;">${(u.plan_tier || 'home_pro').toUpperCase()}</span>`;
+        const regDate = u.created_at ? new Date(u.created_at * 1000).toLocaleDateString() : 'Initial';
+
+        return `
+          <tr>
+            <td style="color: var(--text-sub); font-size: 11px;">#${u.id}</td>
+            <td>
+              <div style="font-weight: 700; color: #fff;">${u.full_name || u.username}</div>
+              <span style="font-size: 10.5px; color: #94a3b8; text-transform: uppercase;">Role: ${u.role || 'customer'}</span>
+            </td>
+            <td>
+              <div style="font-family: monospace; color: #e2e8f0; font-size: 12px;">${u.username}</div>
+              <div style="font-size: 11px; color: #64748b;">${u.email || 'No email'}</div>
+            </td>
+            <td>
+              <a href="/?config=${encodeURIComponent(u.config_id || 'default')}" target="_blank" style="color: #38bdf8; text-decoration: none; font-family: monospace; font-size: 11.5px; background: rgba(56,189,248,0.1); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.2);">
+                ${u.config_id || 'default'} ↗
+              </a>
+            </td>
+            <td>${tierBadge}</td>
+            <td>${statusBadge}</td>
+            <td style="font-size: 11px; color: #94a3b8; font-family: monospace;">${regDate}</td>
+            <td style="text-align: right;">
+              <div style="display: inline-flex; gap: 8px;">
+                <button class="btn-action-sm" onclick="openResetPasswordModal(${u.id}, '${escape(u.username)}')" style="background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3);" title="Reset Password Manually">
+                  🔑 Reset Pass
+                </button>
+                <button class="btn-action-sm" onclick="openUpgradeTierModal(${u.id}, '${escape(u.username)}', '${u.plan_tier}')" style="background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4);" title="Upgrade Account Plan">
+                  ⚡ Upgrade
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+    } catch (e) {
+      console.warn('Failed to load users:', e);
+    }
+  }
+
+  // Refresh users button
+  const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+  if (refreshUsersBtn) {
+    refreshUsersBtn.addEventListener('click', fetchUsers);
+  }
+
+  // --- PASSWORD RESET MODAL CONTROLLERS ---
+  window.openResetPasswordModal = function(userId, username) {
+    document.getElementById('resetTargetUserId').value = userId;
+    document.getElementById('resetTargetUserLabel').textContent = unescape(username);
+    document.getElementById('resetNewPasswordInput').value = '';
+    const errMsg = document.getElementById('resetErrorMsg');
+    if (errMsg) errMsg.style.display = 'none';
+    document.getElementById('resetPasswordModal').style.display = 'flex';
+  };
+
+  window.closeResetPasswordModal = function() {
+    document.getElementById('resetPasswordModal').style.display = 'none';
+  };
+
+  window.handleResetPasswordSubmit = async function(e) {
+    e.preventDefault();
+    const userId = document.getElementById('resetTargetUserId').value;
+    const newPassword = document.getElementById('resetNewPasswordInput').value;
+    const saveBtn = document.getElementById('savePasswordBtn');
+    const errMsg = document.getElementById('resetErrorMsg');
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Updating...';
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+
+      alert(`Success: Password for user updated successfully!`);
+      closeResetPasswordModal();
+    } catch (err) {
+      if (errMsg) {
+        errMsg.textContent = err.message;
+        errMsg.style.display = 'block';
+      }
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save New Password';
+    }
+  };
+
+  // --- UPGRADE TIER MODAL CONTROLLERS ---
+  window.openUpgradeTierModal = function(userId, username, currentTier) {
+    document.getElementById('upgradeTargetUserId').value = userId;
+    document.getElementById('upgradeTargetUserLabel').textContent = unescape(username);
+    if (currentTier && document.getElementById('upgradePlanTierSelect')) {
+      document.getElementById('upgradePlanTierSelect').value = currentTier;
+    }
+    const errMsg = document.getElementById('upgradeErrorMsg');
+    if (errMsg) errMsg.style.display = 'none';
+    document.getElementById('upgradeTierModal').style.display = 'flex';
+  };
+
+  window.closeUpgradeTierModal = function() {
+    document.getElementById('upgradeTierModal').style.display = 'none';
+  };
+
+  window.handleUpgradeTierSubmit = async function(e) {
+    e.preventDefault();
+    const userId = document.getElementById('upgradeTargetUserId').value;
+    const planTier = document.getElementById('upgradePlanTierSelect').value;
+    const extendDays = parseInt(document.getElementById('upgradeExtendDaysSelect').value, 10);
+    const saveBtn = document.getElementById('saveUpgradeBtn');
+    const errMsg = document.getElementById('upgradeErrorMsg');
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Upgrading...';
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/upgrade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_tier: planTier, extend_days: extendDays })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to upgrade tier');
+
+      alert(`Account upgraded successfully to ${planTier.toUpperCase()}!`);
+      closeUpgradeTierModal();
+      fetchUsers();
+      fetchTenants();
+    } catch (err) {
+      if (errMsg) {
+        errMsg.textContent = err.message;
+        errMsg.style.display = 'block';
+      }
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Apply Account Upgrade';
+    }
+  };
 
   checkAuth();
 });

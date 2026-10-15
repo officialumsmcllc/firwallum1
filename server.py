@@ -54,6 +54,10 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
     def admin_page():
         return send_from_directory(STATIC_DIR, "admin.html")
 
+    @app.route("/login")
+    def login_page():
+        return send_from_directory(STATIC_DIR, "login.html")
+
     @app.route("/expired")
     def expired_page():
         return send_from_directory(STATIC_DIR, "expired.html")

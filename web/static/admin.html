@@ -159,6 +159,11 @@
         <div class="stat-sub"><span id="statActiveTenants" style="color: #34d399;">0 Active</span> subscriptions</div>
       </div>
       <div class="stat-card">
+        <div class="stat-label">REGISTERED USERS</div>
+        <div class="stat-val" id="statTotalUsers">0 Users</div>
+        <div class="stat-sub"><span id="statActiveUsers" style="color: #38bdf8;">0 Active</span> credentials</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-label">GLOBAL DATA TRANSFERRED</div>
         <div class="stat-val" id="statGlobalBandwidth">0 MB</div>
         <div class="stat-sub">Across all connected routers</div>
@@ -185,6 +190,10 @@
       <button class="tab-btn active" data-tab="tenantsTab">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Customer Subscriptions
+      </button>
+      <button class="tab-btn" data-tab="usersTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Customer User Accounts
       </button>
       <button class="tab-btn" data-tab="portsProxiesTab">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -223,6 +232,39 @@
             </tr>
           </thead>
           <tbody id="tenantsTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: REGISTERED CUSTOMER USER ACCOUNTS -->
+    <section id="usersTab" class="tab-content">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 class="section-title">Customer User Accounts & Credentials</h2>
+          <p class="section-desc">Manage customer portal credentials, perform manual password overrides, and instantly upgrade subscription tiers.</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="refreshUsersBtn">
+          🔄 Refresh Users List
+        </button>
+      </div>
+
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 45px;">#</th>
+              <th>CUSTOMER NAME</th>
+              <th>USERNAME / EMAIL</th>
+              <th>CONFIG PROFILE</th>
+              <th>PLAN TIER</th>
+              <th>STATUS</th>
+              <th>REGISTERED</th>
+              <th style="text-align: right; width: 230px;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
             <!-- Rendered via JS -->
           </tbody>
         </table>
@@ -335,6 +377,74 @@
         <div class="modal-footer" style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" class="btn btn-secondary" id="cancelAddTenantBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Create Customer Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RESET PASSWORD MODAL -->
+  <div class="modal-overlay" id="resetPasswordModal" style="display: none;">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🔑 Reset Customer Password</h3>
+        <button class="modal-close" onclick="closeResetPasswordModal()">&times;</button>
+      </div>
+      <form id="resetPasswordForm" onsubmit="handleResetPasswordSubmit(event)">
+        <input type="hidden" id="resetTargetUserId">
+        <div class="modal-body" style="padding: 18px 20px;">
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 14px;">
+            Set a new secure password for <strong id="resetTargetUserLabel" style="color: #38bdf8;">User</strong>.
+          </p>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">New Password:</label>
+            <input type="password" id="resetNewPasswordInput" required minlength="4" placeholder="Enter new password (min 4 chars)" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 14px;">
+          </div>
+          <div id="resetErrorMsg" style="color: #f87171; font-size: 12px; display: none; margin-top: 8px;"></div>
+        </div>
+        <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeResetPasswordModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="savePasswordBtn">Save New Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- UPGRADE TIER MODAL -->
+  <div class="modal-overlay" id="upgradeTierModal" style="display: none;">
+    <div class="modal-box" style="max-width: 460px;">
+      <div class="modal-header">
+        <h3 class="modal-title">⚡ Upgrade Customer Account</h3>
+        <button class="modal-close" onclick="closeUpgradeTierModal()">&times;</button>
+      </div>
+      <form id="upgradeTierForm" onsubmit="handleUpgradeTierSubmit(event)">
+        <input type="hidden" id="upgradeTargetUserId">
+        <div class="modal-body" style="padding: 18px 20px;">
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 14px;">
+            Upgrade plan and extend subscription for <strong id="upgradeTargetUserLabel" style="color: #38bdf8;">User</strong>.
+          </p>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">Select New Plan Tier:</label>
+            <select id="upgradePlanTierSelect" style="width: 100%; background: rgba(15,23,42,0.95); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 13px;">
+              <option value="home_pro">🛡️ Home Shield Pro (Smart TV + AdBlock + Adult Filter)</option>
+              <option value="business">🏢 Business Enterprise (Multi-LAN + Port Tunneling)</option>
+              <option value="isp">🌐 ISP Dedicated Tier (Full Bandwidth & Custom IP)</option>
+              <option value="free">⏳ Free Trial (Basic Filtering)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">Subscription Extension:</label>
+            <select id="upgradeExtendDaysSelect" style="width: 100%; background: rgba(15,23,42,0.95); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 13px;">
+              <option value="30">+30 Days Extension (Standard)</option>
+              <option value="90">+90 Days Extension (Quarterly)</option>
+              <option value="365">+365 Days Extension (1 Year)</option>
+              <option value="-1">♾️ Lifetime Active (No Expiry)</option>
+            </select>
+          </div>
+          <div id="upgradeErrorMsg" style="color: #f87171; font-size: 12px; display: none; margin-top: 8px;"></div>
+        </div>
+        <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeUpgradeTierModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveUpgradeBtn">Apply Account Upgrade</button>
         </div>
       </form>
     </div>

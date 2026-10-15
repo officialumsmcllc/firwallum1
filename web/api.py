@@ -508,4 +508,114 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         store.delete_tenant(tid)
         return jsonify({"status": "deleted", "id": tid})
 
+    # =========================================================================
+    # SAAS CUSTOMER AUTHENTICATION & ADMIN USER CONTROLS
+    # =========================================================================
+
+    @api.route("/auth/register", methods=["POST"])
+    def auth_register():
+        """Customer Self-Registration & Dedicated Config Provisioning."""
+        data = request.json or {}
+        username = data.get("username", "").strip()
+        email = data.get("email", "").strip()
+        password = data.get("password", "")
+        full_name = data.get("full_name", "").strip()
+        plan_tier = data.get("plan_tier", "home_pro")
+
+        if not username or not email or not password:
+            return jsonify({"error": "Username, email, and password are required"}), 400
+        if len(password) < 4:
+            return jsonify({"error": "Password must be at least 4 characters long"}), 400
+
+        try:
+            user = store.create_user(
+                username=username,
+                email=email,
+                password=password,
+                full_name=full_name,
+                plan_tier=plan_tier
+            )
+            return jsonify({"status": "registered", "user": user}), 201
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            return jsonify({"error": f"Registration failed: {str(e)}"}), 500
+
+    @api.route("/auth/login", methods=["POST"])
+    def auth_login():
+        """Customer Login & Session Issuance."""
+        data = request.json or {}
+        identifier = data.get("username") or data.get("email") or ""
+        password = data.get("password", "")
+
+        if not identifier or not password:
+            return jsonify({"error": "Please provide username/email and password"}), 400
+
+        user = store.authenticate_user(identifier, password)
+        if not user:
+            return jsonify({"error": "Invalid credentials. Please verify your details."}), 401
+
+        return jsonify({
+            "status": "authenticated",
+            "user": user
+        })
+
+    @api.route("/auth/me", methods=["GET"])
+    def auth_me():
+        """Returns active user profile."""
+        uid = request.headers.get("X-User-Id") or request.args.get("user_id")
+        if not uid:
+            return jsonify({"error": "Unauthorized"}), 401
+        try:
+            user = store.get_user_by_id(int(uid))
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+            return jsonify({"user": user})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+    @api.route("/admin/users", methods=["GET"])
+    def admin_get_users():
+        """Admin fleet view: List all registered customers and subscribers."""
+        users = store.get_all_users()
+        return jsonify({
+            "status": "success",
+            "total_users": len(users),
+            "users": users
+        })
+
+    @api.route("/admin/users/<int:user_id>/reset-password", methods=["POST"])
+    def admin_reset_password(user_id: int):
+        """Admin manual password reset for any customer."""
+        data = request.json or {}
+        new_password = data.get("new_password", "")
+        if not new_password or len(new_password) < 4:
+            return jsonify({"error": "New password must be at least 4 characters long"}), 400
+
+        try:
+            ok = store.admin_reset_user_password(user_id, new_password)
+            if not ok:
+                return jsonify({"error": "User not found"}), 404
+            return jsonify({"status": "success", "message": "User password reset successfully"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+    @api.route("/admin/users/<int:user_id>/upgrade", methods=["POST"])
+    def admin_upgrade_user_plan(user_id: int):
+        """Admin manual plan tier promotion and subscription extension."""
+        data = request.json or {}
+        plan_tier = data.get("plan_tier", "home_pro")
+        extend_days = int(data.get("extend_days", 30))
+
+        try:
+            ok = store.admin_upgrade_user(user_id, new_plan_tier=plan_tier, extend_days=extend_days)
+            if not ok:
+                return jsonify({"error": "User not found"}), 404
+            return jsonify({
+                "status": "success",
+                "message": f"Account upgraded to {plan_tier} with +{extend_days} days extension"
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
     return api

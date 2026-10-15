@@ -4,6 +4,7 @@
 > **Status:** 100% COMPLETE & VERIFIED (SaaS Architecture Live)  
 > **Last Updated:** October 15, 2026  
 > **Handover Doc:** [SAAS_DEV_HANDOVER.md](file:///c:/Users/Abc/Desktop/firwallum1/SAAS_DEV_HANDOVER.md)  
+> **Customer Login / Signup:** `http://localhost:8088/login`  
 > **Customer Dashboard:** `http://localhost:8088/`  
 > **Executive Admin Console:** `http://localhost:8088/admin` (Password: `admintelecom`)  
 > **Subscription Paywall:** `http://localhost:8088/expired`  
@@ -18,12 +19,13 @@
 |---|---|---|---|---|
 | **1** | **DNS Speed Shield & Firewall** | Port 53 par sub-millisecond in-memory cache, 250,000+ tracker/malware domains block, Cloudflare DoH upstream fallback. | **100% Done** | [core/dns_server.py](file:///c:/Users/Abc/Desktop/firwallum1/core/dns_server.py) |
 | **2** | **Multi-Tenant Dual Portals** | Isolated Customer Dashboard (`/`) aur Master Admin Console (`/admin`) with global fleet metrics and 1-click renewal/suspend controls. | **100% Done** | [web/static/admin.html](file:///c:/Users/Abc/Desktop/firwallum1/web/static/admin.html) & [web/static/index.html](file:///c:/Users/Abc/Desktop/firwallum1/web/static/index.html) |
-| **3** | **Real Bandwidth & Speed Meter** | Real data consumption (PS5 4.21 GB, TV 3.59 GB, Laptop 1.32 GB) aur live aggregate throughput (KB/s). Zero 0 MB placeholders. | **100% Done** | [core/store.py](file:///c:/Users/Abc/Desktop/firwallum1/core/store.py) & [web/static/app.js](file:///c:/Users/Abc/Desktop/firwallum1/web/static/app.js) |
-| **4** | **Parental 1-Click Pause** | 1-click button to pause device internet without physical router access. DNS drops queries with `BLOCKED_PAUSED`. | **100% Done** | [core/store.py](file:///c:/Users/Abc/Desktop/firwallum1/core/store.py#L488-L494) |
-| **5** | **Feature 3: Paywall Screen** | Expired/suspended router traffic resolves to captive paywall splash screen (`/expired`) with direct WhatsApp renewal CTA. | **100% Done** | [web/static/expired.html](file:///c:/Users/Abc/Desktop/firwallum1/web/static/expired.html) |
-| **6** | **Feature 5: Smart TV Shield** | Native suppression of Samsung Tizen, LG webOS, Roku, and Fire TV video ad trackers and telemetry. | **100% Done** | [core/dns_server.py](file:///c:/Users/Abc/Desktop/firwallum1/core/dns_server.py#L322-L333) |
-| **7** | **Multi-Egress Proxy Gateway** | 10 Client PCs dedicated ports (8101–8110) with SOCKS5/HTTP exit node rotation managed in Admin console. | **100% Done** | [core/proxy_engine.py](file:///c:/Users/Abc/Desktop/firwallum1/core/proxy_engine.py) |
-| **8** | **Auto Setup & PAC Scripts** | Zero-touch setup via `http://<HUB-IP>:8088/proxy.pac` and Method 6 Smart TV setup card. | **100% Done** | [server.py](file:///c:/Users/Abc/Desktop/firwallum1/server.py) |
+| **3** | **Customer Auth & Accounts** | Dynamic canvas login/register portal (`/login`), PBKDF2 password hashing, auto-provisioning tenant profiles, admin manual password reset & tier upgrades. | **100% Done** | [web/static/login.html](file:///c:/Users/Abc/Desktop/firwallum1/web/static/login.html) & [web/api.py](file:///c:/Users/Abc/Desktop/firwallum1/web/api.py) |
+| **4** | **Real Bandwidth & Speed Meter** | Real data consumption (PS5 4.21 GB, TV 3.59 GB, Laptop 1.32 GB) aur live aggregate throughput (KB/s). Zero 0 MB placeholders. | **100% Done** | [core/store.py](file:///c:/Users/Abc/Desktop/firwallum1/core/store.py) & [web/static/app.js](file:///c:/Users/Abc/Desktop/firwallum1/web/static/app.js) |
+| **5** | **Parental 1-Click Pause** | 1-click button to pause device internet without physical router access. DNS drops queries with `BLOCKED_PAUSED`. | **100% Done** | [core/store.py](file:///c:/Users/Abc/Desktop/firwallum1/core/store.py#L488-L494) |
+| **6** | **Feature 3: Paywall Screen** | Expired/suspended router traffic resolves to captive paywall splash screen (`/expired`) with direct WhatsApp renewal CTA. | **100% Done** | [web/static/expired.html](file:///c:/Users/Abc/Desktop/firwallum1/web/static/expired.html) |
+| **7** | **Feature 5: Smart TV Shield** | Native suppression of Samsung Tizen, LG webOS, Roku, and Fire TV video ad trackers and telemetry. | **100% Done** | [core/dns_server.py](file:///c:/Users/Abc/Desktop/firwallum1/core/dns_server.py#L322-L333) |
+| **8** | **Multi-Egress Proxy Gateway** | 10 Client PCs dedicated ports (8101–8110) with SOCKS5/HTTP exit node rotation managed in Admin console. | **100% Done** | [core/proxy_engine.py](file:///c:/Users/Abc/Desktop/firwallum1/core/proxy_engine.py) |
+| **9** | **Auto Setup & PAC Scripts** | Zero-touch setup via `http://<HUB-IP>:8088/proxy.pac` and Method 6 Smart TV setup card. | **100% Done** | [server.py](file:///c:/Users/Abc/Desktop/firwallum1/server.py) |
 
 ---
 
