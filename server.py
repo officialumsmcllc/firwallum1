@@ -50,6 +50,10 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
     def index():
         return send_from_directory(STATIC_DIR, "index.html")
 
+    @app.route("/connect")
+    def connect_page():
+        return send_from_directory(STATIC_DIR, "connect.html")
+
     @app.route("/proxy.pac")
     def default_pac():
         hub_ip = store.get_settings().get("hub_ip", get_local_ip())

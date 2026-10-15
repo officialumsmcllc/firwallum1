@@ -69,9 +69,9 @@
           <span class="mono" id="hubIpDisplay">192.168.100.158</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </div>
-        <button class="btn btn-secondary" id="openGuideBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          How to Connect PC
+        <button class="btn btn-primary" id="openGuideBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Connect Device
         </button>
       </div>
     </div>
@@ -300,49 +300,62 @@
     </div>
   </div>
 
-  <!-- HOW TO CONNECT PC GUIDE MODAL -->
+  <!-- CONNECT DEVICE & SHARE LINK MODAL -->
   <div class="modal-overlay" id="guideModal">
     <div class="modal-box modal-lg">
       <div class="modal-header">
-        <h3 class="modal-title">How to Connect Client PCs on Wi-Fi</h3>
+        <h3 class="modal-title">⚡ Connect New Device (Share Link & Setup)</h3>
         <button class="modal-close" id="closeGuideModalBtn">&times;</button>
       </div>
       <div class="modal-body guide-content">
-        <p class="guide-intro">All 10 PCs on your Wi-Fi can connect in 30 seconds without installing any software:</p>
+        <p class="guide-intro">Give any device a custom name to generate an instant 1-click connect link. Once opened, the device shows up on your dashboard live!</p>
 
-        <div class="guide-step">
-          <div class="step-num">1</div>
-          <div class="step-body">
-            <h4>Check Hub IP Address</h4>
-            <p>Your Main PC Hub IP is: <strong class="highlight-mono" id="guideHubIp">192.168.100.158</strong></p>
+        <!-- Dynamic Link Generator Box -->
+        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #93c5fd; margin-bottom: 6px;">
+            1. Enter Device Name (e.g. Ali-Phone, Office-Laptop, Guest):
+          </label>
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <input type="text" id="shareDeviceNameInput" placeholder="Enter device name..." value="MyDevice" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px 14px; color: #fff; font-family: var(--font-mono); font-size: 13px;">
+          </div>
+
+          <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #93c5fd; margin-bottom: 6px;">
+            2. Generated Share Link (Send to Phone / WhatsApp):
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <code id="shareGeneratedLink" class="code-badge" style="flex: 1; font-size: 12px; word-break: break-all; padding: 8px 12px; background: rgba(0,0,0,0.5); color: #38bdf8; border-radius: 6px;">https://hub.officialum1.com/connect?name=MyDevice</code>
+            <button class="btn btn-primary" id="copyShareLinkBtn" style="padding: 8px 16px;">📋 Copy Link</button>
           </div>
         </div>
 
         <div class="guide-step">
-          <div class="step-num">2</div>
+          <div class="step-num">A</div>
           <div class="step-body">
-            <h4 style="color: #60a5fa;">Recommended: 1-Click Smart Auto-PAC (Zero Port Setup)</h4>
-            <p>Turn ON <strong>"Use setup script"</strong> on ANY laptop and enter:</p>
-            <p><code class="code-badge" style="font-size: 13px; color: #93c5fd; background: rgba(59,130,246,0.12); padding: 5px 12px;" id="guidePacScriptCode">http://192.168.100.158:8088/proxy.pac</code></p>
-            <p style="font-size: 12px; color: #9ca3af; margin-top: 4px;">✨ The Hub automatically recognizes your laptop by IP and assigns its dedicated port &amp; proxy!</p>
-
-            <h4 style="margin-top: 14px;">Or Option B: Universal Auto-Port</h4>
-            <p>Under <strong>Manual proxy setup</strong>, enter:</p>
-            <p><strong>Proxy IP:</strong> <code class="code-badge" id="guideProxyIpCode">192.168.100.158</code> &nbsp; <strong>Port:</strong> <code class="code-badge" style="color: #34d399;">8100</code></p>
-            <p style="font-size: 12px; color: #9ca3af;">(Same port 8100 works for all laptops with automatic IP routing)</p>
+            <h4 style="color: #60a5fa;">Method 1: Instant 1-Click Link (Easiest)</h4>
+            <p>Just send the generated link above to anyone on WhatsApp. When they open it on their mobile browser, their device instantly handshakes and appears <strong>LIVE on your Dashboard</strong> with their name!</p>
           </div>
         </div>
 
         <div class="guide-step">
-          <div class="step-num">3</div>
+          <div class="step-num">B</div>
           <div class="step-body">
-            <h4>Verification (Exit IP)</h4>
-            <p>On that PC, visit <code>whatismyipaddress.com</code>. It will show the dedicated exit IP assigned to your port!</p>
+            <h4>Method 2: Android Private DNS (Whole Phone Protected)</h4>
+            <p>Go to Android <code>Settings</code> ➔ <code>Network &amp; Internet</code> ➔ <code>Private DNS</code> ➔ Enter:</p>
+            <p><code class="code-badge" style="color: #34d399;" id="guidePrivateDnsHost">hub.officialum1.com</code></p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">C</div>
+          <div class="step-body">
+            <h4>Method 3: Home Router (Pura Ghar Ek Sath)</h4>
+            <p>Huawei HG8245C Router (<code>192.168.100.1</code>) ➔ <code>LAN</code> ➔ <code>DHCP Server Configuration</code>:</p>
+            <p><strong>Primary DNS:</strong> <code class="code-badge">172.64.36.1</code> &nbsp; <strong>Secondary DNS:</strong> <code class="code-badge">172.64.36.2</code></p>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="closeGuideDoneBtn">Got It!</button>
+        <button type="button" class="btn btn-primary" id="closeGuideDoneBtn">Done</button>
       </div>
     </div>
   </div>

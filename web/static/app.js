@@ -548,6 +548,7 @@
   });
 
   document.getElementById('openGuideBtn').addEventListener('click', () => {
+    updateShareLink();
     guideModal.classList.add('open');
   });
   document.getElementById('closeGuideModalBtn').addEventListener('click', () => {
@@ -556,6 +557,34 @@
   document.getElementById('closeGuideDoneBtn').addEventListener('click', () => {
     guideModal.classList.remove('open');
   });
+
+  // --- DYNAMIC SHARE LINK GENERATOR ---
+  const shareInput = document.getElementById('shareDeviceNameInput');
+  const shareLinkEl = document.getElementById('shareGeneratedLink');
+  const copyShareBtn = document.getElementById('copyShareLinkBtn');
+  const privateDnsEl = document.getElementById('guidePrivateDnsHost');
+
+  function updateShareLink() {
+    if (!shareInput || !shareLinkEl) return;
+    const devName = shareInput.value.trim().replace(/\s+/g, '-') || 'MyDevice';
+    const origin = window.location.origin;
+    shareLinkEl.textContent = `${origin}/connect?name=${encodeURIComponent(devName)}`;
+    if (privateDnsEl) {
+      privateDnsEl.textContent = window.location.hostname;
+    }
+  }
+
+  if (shareInput) {
+    shareInput.addEventListener('input', updateShareLink);
+    updateShareLink();
+  }
+
+  if (copyShareBtn && shareLinkEl) {
+    copyShareBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(shareLinkEl.textContent);
+      showToast('Copied device share link to clipboard! 📋');
+    });
+  }
 
   // Close modals on backdrop click
   [addProxyModal, guideModal].forEach(modal => {
