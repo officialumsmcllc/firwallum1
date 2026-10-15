@@ -428,7 +428,7 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
     def admin_auth():
         """Verifies master admin secret and issues authenticated session."""
         data = request.json or {}
-        secret = data.get("password", "").strip()
+        secret = (data.get("password") or data.get("secret") or "").strip()
         master_secret = store.get_settings().get("admin_secret", "admintelecom")
         if secret == master_secret:
             return jsonify({"authenticated": True, "token": "admin-session-active"})
