@@ -156,18 +156,37 @@
     </div>
 
     <div class="box">
-      <div class="box-title">📱 Android / Chrome / Brave (Fast Setup)</div>
+      <div class="box-title">🍏 Apple iOS &amp; macOS (1-Click Profile)</div>
+      <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 10px;">
+        Zero apps required. Installs encrypted DNS configuration directly to iOS Settings:
+      </p>
+      <a href="/apple.mobileconfig" class="btn" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); text-decoration: none; text-align: center; display: block;" download>
+        🍏 Download Apple Profile
+      </a>
+    </div>
+
+    <div class="box">
+      <div class="box-title">📱 Android (Private DNS)</div>
       <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">
-        Settings ➔ Privacy & Security ➔ Secure DNS ➔ Custom:
+        Settings ➔ Connections ➔ Private DNS ➔ Provider hostname:
+      </p>
+      <code style="color: #34d399; font-weight: 600;">hub.officialum1.com</code>
+      <button class="btn" id="copyPrivateDnsBtn" style="margin-top: 8px;">📋 Copy Hostname</button>
+    </div>
+
+    <div class="box">
+      <div class="box-title">🌐 Browsers / Custom DoH Link</div>
+      <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">
+        Chrome / Brave / Edge ➔ Settings ➔ Security ➔ Secure DNS:
       </p>
       <code id="dohUrl">https://hub.officialum1.com/dns-query/MyDevice</code>
-      <button class="btn" id="copyBtn">📋 Copy DNS Link</button>
+      <button class="btn" id="copyBtn" style="margin-top: 8px;">📋 Copy DNS Link</button>
     </div>
 
     <div class="features-list">
       <div class="feature-item"><span>🚫</span>No Ads</div>
       <div class="feature-item"><span>🔞</span>18+ Shield</div>
-      <div class="feature-item"><span>⚡</span>Super Fast</div>
+      <div class="feature-item"><span>⚡</span>Zero Lag</div>
       <div class="feature-item"><span>🔒</span>Encrypted</div>
     </div>
   </div>
@@ -192,7 +211,7 @@
     }
     registerDevice();
 
-    // Copy Button
+    // Copy Button for Custom DoH
     document.getElementById('copyBtn').addEventListener('click', () => {
       navigator.clipboard.writeText(fullDoH);
       document.getElementById('copyBtn').textContent = '✅ Copied to Clipboard!';
@@ -200,6 +219,18 @@
         document.getElementById('copyBtn').textContent = '📋 Copy DNS Link';
       }, 2500);
     });
+
+    // Copy Button for Private DNS Hostname
+    const copyPrivateBtn = document.getElementById('copyPrivateDnsBtn');
+    if (copyPrivateBtn) {
+      copyPrivateBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText('hub.officialum1.com');
+        copyPrivateBtn.textContent = '✅ Hostname Copied!';
+        setTimeout(() => {
+          copyPrivateBtn.textContent = '📋 Copy Hostname';
+        }, 2500);
+      });
+    }
   </script>
 </body>
 </html>

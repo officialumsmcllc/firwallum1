@@ -10,8 +10,143 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261015-saas-v4">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+  <style>
+    /* Critical SaaS Setup & Layout Fallbacks (Prevents any unstyled flash or cache mismatch) */
+    .setup-hero-banner {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 50%, rgba(30, 58, 138, 0.3) 100%) !important;
+      border: 1px solid rgba(59, 130, 246, 0.3) !important;
+      border-radius: 16px !important;
+      padding: 22px 26px !important;
+      margin-bottom: 28px !important;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
+    }
+    .setup-endpoints-grid {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
+      gap: 14px !important;
+    }
+    .endpoint-chip {
+      background: rgba(15, 23, 42, 0.8) !important;
+      border: 1px solid rgba(59, 130, 246, 0.25) !important;
+      border-radius: 12px !important;
+      padding: 12px 16px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      position: relative !important;
+    }
+    .setup-platforms-container {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 24px !important;
+    }
+    .setup-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.65) 100%) !important;
+      border: 1px solid rgba(59, 130, 246, 0.25) !important;
+      border-radius: 16px !important;
+      padding: 24px 26px !important;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5) !important;
+      margin-bottom: 16px !important;
+    }
+    .setup-card-featured {
+      border-color: rgba(16, 185, 129, 0.45) !important;
+      background: linear-gradient(145deg, rgba(6, 78, 59, 0.2) 0%, rgba(15, 23, 42, 0.92) 50%) !important;
+      box-shadow: 0 12px 36px -10px rgba(16, 185, 129, 0.2) !important;
+    }
+    .setup-card-header {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      margin-bottom: 18px !important;
+      padding-bottom: 14px !important;
+      border-bottom: 1px solid rgba(71, 85, 105, 0.25) !important;
+      flex-wrap: wrap !important;
+      gap: 12px !important;
+    }
+    .setup-card-title-flex {
+      display: flex !important;
+      align-items: center !important;
+      gap: 14px !important;
+    }
+    .setup-platform-icon {
+      width: 42px !important;
+      height: 42px !important;
+      border-radius: 10px !important;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%) !important;
+      border: 1px solid rgba(59, 130, 246, 0.3) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 22px !important;
+      flex-shrink: 0 !important;
+    }
+    .setup-card-title {
+      font-size: 17px !important;
+      font-weight: 700 !important;
+      color: #ffffff !important;
+      margin: 0 !important;
+    }
+    .setup-steps-list {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 16px !important;
+    }
+    .setup-step-item {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: flex-start !important;
+      gap: 16px !important;
+    }
+    .setup-step-badge {
+      width: 28px !important;
+      height: 28px !important;
+      min-width: 28px !important;
+      border-radius: 50% !important;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+      color: #ffffff !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      flex-shrink: 0 !important;
+      margin-top: 2px !important;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4) !important;
+      border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    }
+    .setup-step-text {
+      font-size: 13.5px !important;
+      color: #cbd5e1 !important;
+      line-height: 1.6 !important;
+      flex: 1 !important;
+    }
+    .setup-step-text strong {
+      color: #ffffff !important;
+    }
+    .setup-step-text code {
+      font-family: 'JetBrains Mono', monospace !important;
+      background: rgba(0, 0, 0, 0.5) !important;
+      color: #38bdf8 !important;
+      padding: 3px 9px !important;
+      border-radius: 6px !important;
+      border: 1px solid rgba(56, 189, 248, 0.25) !important;
+      font-size: 12.5px !important;
+      font-weight: 500 !important;
+      display: inline-block !important;
+      margin: 2px 0 !important;
+    }
+    .setup-callout {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.4) 100%) !important;
+      border-left: 4px solid #10b981 !important;
+      border-radius: 0 10px 10px 0 !important;
+      padding: 14px 18px !important;
+      font-size: 13px !important;
+      color: #d1fae5 !important;
+      margin-bottom: 22px !important;
+      line-height: 1.6 !important;
+    }
+  </style>
 </head>
 <body>
 
