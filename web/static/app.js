@@ -602,6 +602,17 @@
     });
   }
 
+  // Copy buttons for NextDNS-style endpoint chips
+  document.querySelectorAll('.chip-copy-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const val = e.currentTarget.getAttribute('data-copy');
+      if (val) {
+        navigator.clipboard.writeText(val);
+        showToast(`Copied ${val} to clipboard! 📋`);
+      }
+    });
+  });
+
   // Close modals on backdrop click
   [addProxyModal, guideModal].forEach(modal => {
     if (modal) {

@@ -150,6 +150,62 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
             "Access-Control-Allow-Origin": "*"
         })
 
+    @app.route("/apple.mobileconfig")
+    @app.route("/api/setup/apple-profile")
+    def apple_profile():
+        """Generates a native Apple Configuration Profile for iOS & macOS."""
+        dev_name = request.args.get("name", "OFFICIALUM1 Shield")
+        doh_url = f"https://hub.officialum1.com/dns-query/{dev_name}" if dev_name else "https://hub.officialum1.com/dns-query"
+        profile_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>DNSSettings</key>
+            <dict>
+                <key>DNSProtocol</key>
+                <string>HTTPS</string>
+                <key>ServerURL</key>
+                <string>{doh_url}</string>
+            </dict>
+            <key>PayloadDescription</key>
+            <string>Configures device to use OFFICIALUM1 Encrypted DNS Security Shield.</string>
+            <key>PayloadDisplayName</key>
+            <string>OFFICIALUM1 Security Shield</string>
+            <key>PayloadIdentifier</key>
+            <string>com.officialum1.dns</string>
+            <key>PayloadType</key>
+            <string>com.apple.dnsSettings.managed</string>
+            <key>PayloadUUID</key>
+            <string>e93574d7-4d9a-4c2e-9d22-1d54e12e1234</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>OFFICIALUM1 Encrypted DNS Profile for iOS &amp; macOS.</string>
+    <key>PayloadDisplayName</key>
+    <string>OFFICIALUM1 Security Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.officialum1.profile</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>c01a2f90-8b1e-436d-9799-d4d7f7fa4567</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>"""
+        return Response(
+            profile_xml,
+            mimetype="application/x-apple-aspen-config",
+            headers={"Content-Disposition": 'attachment; filename="officialum1.mobileconfig"'}
+        )
+
     @app.route("/<path:path>")
     def static_files(path):
         return send_from_directory(STATIC_DIR, path)

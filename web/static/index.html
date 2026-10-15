@@ -142,14 +142,18 @@
 
     <!-- Navigation Tabs -->
     <div class="tabs-bar">
-      <button class="tab-btn active" data-tab="portsTab">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        10 Device Ports (8101 &ndash; 8110)
+      <button class="tab-btn active" data-tab="setupTab" id="setupTabBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Setup Guide (Router &amp; OS)
       </button>
       <button class="tab-btn" data-tab="wifiTab" id="wifiTabBtn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
         Wi-Fi Devices
         <span id="wifiDeviceCountBadge" class="badge" style="margin-left: 4px; background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 10px; padding: 2px 8px; border-radius: 9999px;">...</span>
+      </button>
+      <button class="tab-btn" data-tab="portsTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        10 Device Ports (8101 &ndash; 8110)
       </button>
       <button class="tab-btn" data-tab="proxiesTab">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -157,8 +161,238 @@
       </button>
     </div>
 
-    <!-- TAB 1: PORTS GRID -->
-    <section id="portsTab" class="tab-content active">
+    <!-- TAB 1: NEXTDNS-STYLE SETUP GUIDE -->
+    <section id="setupTab" class="tab-content active">
+      <div class="setup-hero-banner">
+        <div class="setup-hero-status">
+          <span class="status-dot"></span>
+          <span>OFFICIALUM1 Security Engine: <strong>ACTIVE &amp; OPERATIONAL</strong></span>
+        </div>
+        <div class="setup-endpoints-grid">
+          <div class="endpoint-chip">
+            <span class="chip-label">PRIMARY IPv4 DNS (ROUTER DHCP)</span>
+            <span class="chip-val">172.64.36.1</span>
+            <button class="chip-copy-btn" data-copy="172.64.36.1" title="Copy">📋</button>
+          </div>
+          <div class="endpoint-chip">
+            <span class="chip-label">SECONDARY IPv4 DNS (ROUTER DHCP)</span>
+            <span class="chip-val">172.64.36.2</span>
+            <button class="chip-copy-btn" data-copy="172.64.36.2" title="Copy">📋</button>
+          </div>
+          <div class="endpoint-chip">
+            <span class="chip-label">DNS-OVER-HTTPS (DoH)</span>
+            <span class="chip-val">https://hub.officialum1.com/dns-query</span>
+            <button class="chip-copy-btn" data-copy="https://hub.officialum1.com/dns-query" title="Copy">📋</button>
+          </div>
+          <div class="endpoint-chip">
+            <span class="chip-label">PRIVATE DNS (TLS HOSTNAME)</span>
+            <span class="chip-val">hub.officialum1.com</span>
+            <button class="chip-copy-btn" data-copy="hub.officialum1.com" title="Copy">📋</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-platforms-container">
+
+        <!-- METHOD 1: ROUTERS (WHOLE HOME / OFFICE) -->
+        <div class="setup-card setup-card-featured">
+          <div class="setup-card-header">
+            <div class="setup-card-title-flex">
+              <div class="setup-platform-icon">🏠</div>
+              <div>
+                <h3 class="setup-card-title">Routers (Whole Network DHCP Protection)</h3>
+                <p style="font-size: 12px; color: var(--text-sub); margin-top: 2px;">Protect every phone, computer, and guest on Wi-Fi with zero client setup.</p>
+              </div>
+            </div>
+            <span class="setup-badge-recommended">⭐ RECOMMENDED (WHOLE HOME)</span>
+          </div>
+
+          <div class="setup-callout">
+            <strong>Zero-Touch Protection:</strong> Setting these DNS IPs on your router's DHCP server automatically protects <strong>every single device</strong> connected to your Wi-Fi (smartphones, laptops, smart TVs, and guests) without needing any software or links!
+          </div>
+
+          <div class="setup-steps-list">
+            <div class="setup-step-item">
+              <span class="setup-step-badge">1</span>
+              <div class="setup-step-text">
+                Open your router settings page in your browser: <code>http://192.168.100.1</code> (or your router's default gateway e.g. <code>192.168.1.1</code>).<br>
+                For Huawei HG8245C GPON, log in with username: <code>telecomadmin</code>, password: <code>admintelecom</code>.
+              </div>
+            </div>
+
+            <div class="setup-step-item">
+              <span class="setup-step-badge">2</span>
+              <div class="setup-step-text">
+                Navigate to <strong>LAN</strong> ➔ <strong>DHCP Server Configuration</strong> (or <strong>WAN / DNS Settings</strong>).
+              </div>
+            </div>
+
+            <div class="setup-step-item">
+              <span class="setup-step-badge">3</span>
+              <div class="setup-step-text">
+                Enter the OFFICIALUM1 Anycast DNS Server IP addresses:
+                <div style="display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap;">
+                  <span>Primary DNS: <code>172.64.36.1</code></span>
+                  <span>Secondary DNS: <code>172.64.36.2</code></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="setup-step-item">
+              <span class="setup-step-badge">4</span>
+              <div class="setup-step-text">
+                Click <strong>Apply / Save</strong> and reconnect your phone or laptop to Wi-Fi. All traffic is now shielded through OFFICIALUM1 Cloud Gateway!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- METHOD 2: ANDROID (NATIVE PRIVATE DNS) -->
+        <div class="setup-card">
+          <div class="setup-card-header">
+            <div class="setup-card-title-flex">
+              <div class="setup-platform-icon">📱</div>
+              <div>
+                <h3 class="setup-card-title">Android (Native Private DNS)</h3>
+                <p style="font-size: 12px; color: var(--text-sub); margin-top: 2px;">Built into Android 9+. No app or battery drain.</p>
+              </div>
+            </div>
+            <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 11px;">ZERO APPS</span>
+          </div>
+
+          <div class="setup-steps-list">
+            <div class="setup-step-item">
+              <span class="setup-step-badge">1</span>
+              <div class="setup-step-text">
+                Go to Android <strong>Settings</strong> ➔ <strong>Connections</strong> (or <strong>Network &amp; internet</strong>) ➔ <strong>More connection settings</strong> ➔ <strong>Private DNS</strong>.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">2</span>
+              <div class="setup-step-text">
+                Select <strong>Private DNS provider hostname</strong> and enter:
+                <div style="margin-top: 6px;">
+                  <code>hub.officialum1.com</code>
+                </div>
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">3</span>
+              <div class="setup-step-text">
+                Tap <strong>Save</strong>. Your phone is now encrypted and ad-free across all Wi-Fi, 4G, and 5G networks.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- METHOD 3: APPLE IOS & MACOS -->
+        <div class="setup-card">
+          <div class="setup-card-header">
+            <div class="setup-card-title-flex">
+              <div class="setup-platform-icon">🍏</div>
+              <div>
+                <h3 class="setup-card-title">Apple iOS &amp; macOS (1-Click Profile)</h3>
+                <p style="font-size: 12px; color: var(--text-sub); margin-top: 2px;">Official Apple Encrypted DNS configuration for iPhone, iPad, and Mac.</p>
+              </div>
+            </div>
+            <a href="/apple.mobileconfig" class="btn btn-primary btn-sm" download>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Profile
+            </a>
+          </div>
+
+          <div class="setup-steps-list">
+            <div class="setup-step-item">
+              <span class="setup-step-badge">1</span>
+              <div class="setup-step-text">
+                Open Safari on your iPhone, iPad, or Mac and tap <a href="/apple.mobileconfig" style="color:#60a5fa; text-decoration: underline;">Download Apple Profile</a>. Tap <strong>Allow</strong> when prompted.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">2</span>
+              <div class="setup-step-text">
+                Go to iOS <strong>Settings</strong> ➔ Tap <strong>Profile Downloaded</strong> at the top ➔ Tap <strong>Install</strong>.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">3</span>
+              <div class="setup-step-text">
+                Enter your iPhone passcode and tap <strong>Install</strong>. Your device is permanently secured with Zero Apps running!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- METHOD 4: WINDOWS 11 / 10 -->
+        <div class="setup-card">
+          <div class="setup-card-header">
+            <div class="setup-card-title-flex">
+              <div class="setup-platform-icon">💻</div>
+              <div>
+                <h3 class="setup-card-title">Windows 11 / 10 (DNS over HTTPS)</h3>
+                <p style="font-size: 12px; color: var(--text-sub); margin-top: 2px;">Encrypted system-wide DNS in Windows settings.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-steps-list">
+            <div class="setup-step-item">
+              <span class="setup-step-badge">1</span>
+              <div class="setup-step-text">
+                Go to <strong>Settings</strong> ➔ <strong>Network &amp; internet</strong> ➔ <strong>Wi-Fi</strong> (or <strong>Ethernet</strong>) ➔ <strong>Hardware properties</strong>.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">2</span>
+              <div class="setup-step-text">
+                Under <strong>DNS server assignment</strong>, click <strong>Edit</strong> ➔ Select <strong>Manual</strong> ➔ Toggle <strong>IPv4</strong> to ON.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">3</span>
+              <div class="setup-step-text">
+                Set Preferred DNS to <code>172.64.36.1</code> and DNS encryption to <strong>Encrypted only (DNS over HTTPS)</strong> with template: <code>https://hub.officialum1.com/dns-query</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- METHOD 5: WEB BROWSERS -->
+        <div class="setup-card">
+          <div class="setup-card-header">
+            <div class="setup-card-title-flex">
+              <div class="setup-platform-icon">🌐</div>
+              <div>
+                <h3 class="setup-card-title">Web Browsers (Chrome, Brave, Edge, Firefox)</h3>
+                <p style="font-size: 12px; color: var(--text-sub); margin-top: 2px;">Encrypted DNS inside any web browser on any device.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-steps-list">
+            <div class="setup-step-item">
+              <span class="setup-step-badge">1</span>
+              <div class="setup-step-text">
+                Open browser <strong>Settings</strong> ➔ <strong>Privacy and security</strong> ➔ <strong>Security</strong>.
+              </div>
+            </div>
+            <div class="setup-step-item">
+              <span class="setup-step-badge">2</span>
+              <div class="setup-step-text">
+                Enable <strong>Use secure DNS</strong> ➔ Choose <strong>With: Custom</strong> ➔ Enter:
+                <div style="margin-top: 6px;">
+                  <code>https://hub.officialum1.com/dns-query</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 2: PORTS GRID -->
+    <section id="portsTab" class="tab-content">
       <div class="section-header">
         <div>
           <h2 class="section-title">Dedicated Ports Matrix</h2>

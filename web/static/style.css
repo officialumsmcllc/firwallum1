@@ -951,6 +951,209 @@ body {
 .sys-monitor-bar .sys-val {
   color: var(--accent-cyan);
   font-weight: 500;
+/* ========== NEXTDNS-STYLE SETUP GUIDE STYLING ========== */
+.setup-hero-banner {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.setup-hero-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #93c5fd;
+  margin-bottom: 16px;
+}
+
+.setup-hero-status strong {
+  color: #34d399;
+}
+
+.setup-endpoints-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.endpoint-chip {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.endpoint-chip:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.chip-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #60a5fa;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.chip-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #f1f5f9;
+  word-break: break-all;
+  padding-right: 28px;
+}
+
+.chip-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.chip-copy-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.setup-platforms-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.setup-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  transition: all 0.2s ease;
+}
+
+.setup-card:hover {
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.setup-card-featured {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, var(--bg-card) 40%);
+  box-shadow: 0 4px 24px rgba(16, 185, 129, 0.1);
+}
+
+.setup-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.setup-card-title-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.setup-platform-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.setup-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.setup-badge-recommended {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.setup-callout {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 3px solid #10b981;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #d1fae5;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.setup-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.setup-step-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.setup-step-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.setup-step-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.setup-step-text strong {
+  color: #f1f5f9;
+}
+
+.setup-step-text code {
+  font-family: var(--font-mono);
+  background: rgba(0, 0, 0, 0.4);
+  color: #93c5fd;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  user-select: all;
+  font-size: 12px;
 }
 
 /* ========== RESPONSIVE ========== */
