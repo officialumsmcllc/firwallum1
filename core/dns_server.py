@@ -294,7 +294,7 @@ class DnsFirewall:
                 return True
         return False
 
-    def _process_packet(self, data: bytes) -> Optional[bytes]:
+    def _process_packet(self, data: bytes, client_ip: str = "127.0.0.1", device_name: str = "") -> Optional[bytes]:
         try:
             req = DNSRecord.parse(data)
         except Exception:
@@ -306,11 +306,16 @@ class DnsFirewall:
         q = req.questions[0]
         qname = str(q.qname).rstrip(".").lower()
         qtype_num = q.qtype
+        qtype_str = str(QTYPE.get(qtype_num, "A"))
+
+        # Lookup configuration for this linked client IP
+        config_id = self.store.get_config_for_ip(client_ip)
 
         # 1. Adblock check
         settings = self.store.get_settings()
         if settings.get("dns_adblock_enabled") == "1":
             if self._is_blocked(qname):
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_AD", device_name=device_name, config_id=config_id)
                 reply = req.reply()
                 reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
                 return reply.pack()
@@ -318,6 +323,7 @@ class DnsFirewall:
         # 1b. Adult 18+ Content & Explicit Ads Shield
         if settings.get("adult_block_enabled", "1") == "1":
             if self._is_adult(qname):
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_ADULT", device_name=device_name, config_id=config_id)
                 reply = req.reply()
                 reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
                 return reply.pack()
@@ -330,6 +336,7 @@ class DnsFirewall:
         # 3. In-memory LRU Cache hit
         cached = self.cache.get(qname, qtype_num)
         if cached and len(cached) >= 12:
+            self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="ALLOWED", device_name=device_name, config_id=config_id)
             return data[:2] + cached[2:]
 
         # 4. Ultra-Fast UDP Upstream: Prefer Google DNS (8.8.8.8 / 8.8.4.4) for EDNS Client Subnet
@@ -343,6 +350,7 @@ class DnsFirewall:
                 s.close()
                 if resp and len(resp) >= 12:
                     self.cache.set(qname, qtype_num, resp, ttl=600)
+                    self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="ALLOWED", device_name=device_name, config_id=config_id)
                     return resp
             except Exception:
                 pass
@@ -358,6 +366,7 @@ class DnsFirewall:
             )
             if resp.status_code == 200 and len(resp.content) >= 12:
                 self.cache.set(qname, qtype_num, resp.content, ttl=300)
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="ALLOWED", device_name=device_name, config_id=config_id)
                 return resp.content
         except Exception:
             pass

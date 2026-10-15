@@ -138,7 +138,7 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
         if not data:
             return "No DNS payload", 400
 
-        resp = dns_firewall._process_packet(data)
+        resp = dns_firewall._process_packet(data, client_ip=raw_ip, device_name=dev_tag or "")
         if not resp:
             return "Resolution Failed", 500
 

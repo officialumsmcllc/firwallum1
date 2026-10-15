@@ -140,11 +140,30 @@
       </div>
     </div>
 
+    <!-- NextDNS-Style Network Detection Banner -->
+    <div class="nextdns-status-banner checking" id="nextdnsStatusBanner">
+      <div class="banner-content">
+        <span class="status-indicator-dot" id="bannerStatusDot"></span>
+        <div>
+          <div class="banner-main-text" id="bannerMainText">Checking network status...</div>
+          <div class="banner-sub-text" id="bannerSubText">Detecting if this router/device is actively shielded by OFFICIALUM1 DNS</div>
+        </div>
+      </div>
+      <div class="banner-actions">
+        <button class="btn btn-sm btn-secondary" id="recheckStatusBtn">🔄 Test Status</button>
+      </div>
+    </div>
+
     <!-- Navigation Tabs -->
     <div class="tabs-bar">
       <button class="tab-btn active" data-tab="setupTab" id="setupTabBtn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Setup Guide (Router &amp; OS)
+      </button>
+      <button class="tab-btn" data-tab="logsTab" id="logsTabBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Real-Time Query Logs
+        <span id="dnsLogsCountBadge" class="badge" style="margin-left: 4px; background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 10px; padding: 2px 8px; border-radius: 9999px;">LIVE</span>
       </button>
       <button class="tab-btn" data-tab="wifiTab" id="wifiTabBtn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
@@ -164,9 +183,18 @@
     <!-- TAB 1: NEXTDNS-STYLE SETUP GUIDE -->
     <section id="setupTab" class="tab-content active">
       <div class="setup-hero-banner">
-        <div class="setup-hero-status">
-          <span class="status-dot"></span>
-          <span>OFFICIALUM1 Security Engine: <strong>ACTIVE &amp; OPERATIONAL</strong></span>
+        <div class="setup-hero-status" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="status-dot"></span>
+            <span>Configuration: <strong id="currentConfigName">OfficialUM1 Network Shield</strong> (<code style="background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; color: #60a5fa;" id="currentConfigId">default</code>)</span>
+          </div>
+          <div class="linked-ip-box" style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(59,130,246,0.25);">
+            <span style="font-size: 12px; color: #94a3b8;">Router Public WAN IP:</span>
+            <strong style="font-family: var(--font-mono); font-size: 12px; color: #38bdf8;" id="detectedPublicIpDisplay">103.72.2.41</strong>
+            <button class="btn btn-sm btn-primary" id="toggleLinkIpBtn" style="padding: 3px 10px; font-size: 11px;">
+              🔗 Link IP
+            </button>
+          </div>
         </div>
         <div class="setup-endpoints-grid">
           <div class="endpoint-chip">
@@ -391,7 +419,51 @@
       </div>
     </section>
 
-    <!-- TAB 2: PORTS GRID -->
+    <!-- TAB: REAL-TIME QUERY LOGS STREAM -->
+    <section id="logsTab" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Real-Time Query Telemetry Stream</h2>
+          <p class="section-desc">Live feed of all DNS queries passing through your router and shielded devices. Displays blocked ads, blocked 18+ adult content, and allowed queries.</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <select id="logFilterSelect" class="form-control" style="width: 140px; font-size: 11px; padding: 6px 10px; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; color: #fff;">
+            <option value="ALL">All Queries</option>
+            <option value="BLOCKED">All Blocked</option>
+            <option value="BLOCKED_AD">Blocked Ads</option>
+            <option value="BLOCKED_ADULT">Blocked Adult</option>
+            <option value="ALLOWED">Allowed</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="clearLogsBtn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Clear Logs
+          </button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 110px;">TIME</th>
+              <th style="width: 160px;">STATUS</th>
+              <th>DOMAIN</th>
+              <th style="width: 150px;">CLIENT / DEVICE</th>
+              <th style="width: 70px;">TYPE</th>
+            </tr>
+          </thead>
+          <tbody id="dnsLogsTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-sub); padding: 30px;">
+                Listening for real-time DNS queries from your router and devices...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: PORTS GRID -->
     <section id="portsTab" class="tab-content">
       <div class="section-header">
         <div>

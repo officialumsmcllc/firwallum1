@@ -422,6 +422,8 @@
       if (target === 'proxiesTab') refreshProxiesTable();
       if (target === 'portsTab') refreshPorts();
       if (target === 'wifiTab') refreshWifiDevices();
+      if (target === 'logsTab') refreshDnsLogs();
+      if (target === 'setupTab') detectDnsStatus();
     });
   });
 
@@ -708,10 +710,177 @@
     });
   }
 
+  // ========== NEXTDNS-STYLE SAAS & QUERY TELEMETRY LOGS ==========
+  let currentDetectedIp = '';
+  let isCurrentIpLinked = false;
+  let activeLogs = [];
+
+  async function detectDnsStatus() {
+    const banner = document.getElementById('nextdnsStatusBanner');
+    const mainText = document.getElementById('bannerMainText');
+    const subText = document.getElementById('bannerSubText');
+    if (!banner || !mainText) return;
+
+    try {
+      const res = await apiGet('dns-detect');
+      if (res) {
+        currentDetectedIp = res.client_ip;
+        isCurrentIpLinked = res.is_linked;
+        
+        const ipDisplay = document.getElementById('detectedPublicIpDisplay');
+        if (ipDisplay) ipDisplay.textContent = currentDetectedIp;
+
+        updateLinkIpButton(res.is_linked);
+
+        if (res.is_using_officialum1) {
+          banner.className = 'nextdns-status-banner active';
+          mainText.innerHTML = '🟢 All good! This network is using OFFICIALUM1 with this configuration.';
+          subText.textContent = `Router WAN IP ${res.client_ip} is linked to configuration '${res.config_id}'. Zero-touch shield active.`;
+        } else {
+          banner.className = 'nextdns-status-banner inactive';
+          mainText.innerHTML = '🔴 This network is not using this configuration.';
+          subText.textContent = `Router WAN IP is ${res.client_ip}. Click 'Link IP' or configure router DHCP below.`;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to detect DNS status', e);
+    }
+  }
+
+  function updateLinkIpButton(isLinked) {
+    const btn = document.getElementById('toggleLinkIpBtn');
+    if (!btn) return;
+    if (isLinked) {
+      btn.className = 'btn btn-sm btn-secondary';
+      btn.innerHTML = '✅ IP Linked';
+      btn.title = 'Click to Unlink IP from this Configuration';
+    } else {
+      btn.className = 'btn btn-sm btn-primary';
+      btn.innerHTML = '🔗 Link IP';
+      btn.title = 'Click to Link your Router WAN IP to this Configuration';
+    }
+  }
+
+  async function toggleLinkIp() {
+    const action = isCurrentIpLinked ? 'unlink' : 'link';
+    const res = await apiPost('config/link-ip', { ip: currentDetectedIp, config_id: 'default', action });
+    if (res) {
+      isCurrentIpLinked = (action === 'link');
+      updateLinkIpButton(isCurrentIpLinked);
+      showToast(`Router WAN IP ${currentDetectedIp} ${isCurrentIpLinked ? 'Linked Successfully! 🎉' : 'Unlinked.'}`);
+      detectDnsStatus();
+    }
+  }
+
+  async function refreshDnsLogs() {
+    const tbody = document.getElementById('dnsLogsTableBody');
+    const countBadge = document.getElementById('dnsLogsCountBadge');
+    if (!tbody) return;
+
+    const res = await apiGet('dns-logs?limit=100');
+    if (res && res.logs) {
+      activeLogs = res.logs;
+      if (countBadge) countBadge.textContent = `${res.logs.length} Logged`;
+      renderLogsTable();
+    }
+  }
+
+  function renderLogsTable() {
+    const tbody = document.getElementById('dnsLogsTableBody');
+    const filterSelect = document.getElementById('logFilterSelect');
+    if (!tbody) return;
+
+    const filterVal = filterSelect ? filterSelect.value : 'ALL';
+    let filtered = activeLogs;
+
+    if (filterVal === 'BLOCKED') {
+      filtered = activeLogs.filter(l => l.status.startsWith('BLOCKED'));
+    } else if (filterVal === 'BLOCKED_AD') {
+      filtered = activeLogs.filter(l => l.status === 'BLOCKED_AD');
+    } else if (filterVal === 'BLOCKED_ADULT') {
+      filtered = activeLogs.filter(l => l.status === 'BLOCKED_ADULT');
+    } else if (filterVal === 'ALLOWED') {
+      filtered = activeLogs.filter(l => l.status === 'ALLOWED');
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-sub); padding: 30px;">
+            ${activeLogs.length === 0 ? 'Listening for real-time DNS queries from your router and devices...' : 'No queries match the selected filter.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(log => {
+      const d = new Date(log.timestamp * 1000);
+      const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      
+      let badgeHtml = '';
+      if (log.status === 'BLOCKED_AD') {
+        badgeHtml = `<span class="badge" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); font-size: 10px;">🚫 BLOCKED (Ad/Tracker)</span>`;
+      } else if (log.status === 'BLOCKED_ADULT') {
+        badgeHtml = `<span class="badge" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); font-size: 10px;">🔞 BLOCKED (18+ Adult)</span>`;
+      } else {
+        badgeHtml = `<span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-size: 10px;">🟢 ALLOWED</span>`;
+      }
+
+      return `
+        <tr style="${log.status.startsWith('BLOCKED') ? 'background: rgba(239,68,68,0.02);' : ''}">
+          <td style="font-family: var(--font-mono); font-size: 11px; color: #94a3b8;">${timeStr}</td>
+          <td>${badgeHtml}</td>
+          <td>
+            <strong style="font-family: var(--font-mono); font-size: 12px; color: ${log.status.startsWith('BLOCKED') ? '#fca5a5' : '#f8fafc'}; word-break: break-all;">
+              ${log.domain}
+            </strong>
+          </td>
+          <td>
+            <span style="font-family: var(--font-mono); font-size: 11px; color: #60a5fa;">
+              ${log.device_name || log.client_ip}
+            </span>
+          </td>
+          <td><code class="code-badge" style="font-size: 10px;">${log.qtype}</code></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // --- SAAS EVENT LISTENERS ---
+  const toggleLinkIpBtn = document.getElementById('toggleLinkIpBtn');
+  if (toggleLinkIpBtn) {
+    toggleLinkIpBtn.addEventListener('click', toggleLinkIp);
+  }
+
+  const recheckStatusBtn = document.getElementById('recheckStatusBtn');
+  if (recheckStatusBtn) {
+    recheckStatusBtn.addEventListener('click', () => {
+      detectDnsStatus();
+      showToast('Checking network DNS status...');
+    });
+  }
+
+  const clearLogsBtn = document.getElementById('clearLogsBtn');
+  if (clearLogsBtn) {
+    clearLogsBtn.addEventListener('click', async () => {
+      await apiPost('dns-logs/clear', {});
+      showToast('DNS query logs cleared.');
+      refreshDnsLogs();
+    });
+  }
+
+  const logFilterSelect = document.getElementById('logFilterSelect');
+  if (logFilterSelect) {
+    logFilterSelect.addEventListener('change', renderLogsTable);
+  }
+
   // --- INITIAL LOAD ---
   refreshStatus();
   refreshPorts();
   refreshWifiDevices();
+  detectDnsStatus();
+  refreshDnsLogs();
   
   // System monitor uptime ticker (every 1 sec)
   setInterval(() => updateSystemMonitor(null), 1000);
@@ -719,5 +888,13 @@
   // Auto-refresh intervals (NextDNS-style Real-Time Auto-Sync)
   setInterval(refreshStatus, 2500);
   setInterval(refreshWifiDevices, 2000);
+  setInterval(detectDnsStatus, 5000);
+  setInterval(() => {
+    const logsTab = document.getElementById('logsTab');
+    if (logsTab && logsTab.classList.contains('active')) {
+      refreshDnsLogs();
+    }
+  }, 2000);
 
 })();
+

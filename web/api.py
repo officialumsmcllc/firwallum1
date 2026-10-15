@@ -318,4 +318,68 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         store.bind_client_to_port(int(port), ip, mac)
         return jsonify({"status": "updated", "ip": ip, "mac": mac, "port": int(port)})
 
+    # ========== NEXTDNS-STYLE SAAS & LINKED IP APIS ==========
+    @api.route("/dns-detect", methods=["GET"])
+    def detect_dns_usage():
+        """NextDNS-style real-time verification: checks if current browser/network is using the firewall."""
+        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
+        config_id = store.get_config_for_ip(client_ip)
+        is_linked = store.is_ip_linked(client_ip, config_id)
+        
+        # Check recent queries
+        recent_logs = store.get_dns_logs(config_id=config_id, limit=5)
+        has_recent = any(log["client_ip"] == client_ip for log in recent_logs)
+        
+        return jsonify({
+            "is_using_officialum1": is_linked or has_recent,
+            "client_ip": client_ip,
+            "config_id": config_id,
+            "is_linked": is_linked,
+            "has_recent_queries": has_recent
+        })
+
+    @api.route("/config/info", methods=["GET"])
+    def get_config_info():
+        """Returns SaaS configuration details and linked public IPs."""
+        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
+        config_id = request.args.get("id") or store.get_config_for_ip(client_ip)
+        config = store.get_or_create_config(config_id)
+        linked_ips = store.get_linked_ips(config_id)
+        return jsonify({
+            "config": config,
+            "client_ip": client_ip,
+            "linked_ips": linked_ips,
+            "is_current_ip_linked": client_ip in linked_ips
+        })
+
+    @api.route("/config/link-ip", methods=["POST"])
+    def handle_link_ip():
+        """1-Click Link or Unlink of Public Router WAN IP to Configuration."""
+        data = request.json or {}
+        client_ip = data.get("ip") or request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
+        config_id = data.get("config_id", "default")
+        action = data.get("action", "link")
+        
+        if action == "unlink":
+            store.unlink_ip(client_ip)
+            return jsonify({"status": "unlinked", "ip": client_ip, "config_id": config_id})
+        else:
+            store.link_ip(client_ip, config_id)
+            return jsonify({"status": "linked", "ip": client_ip, "config_id": config_id})
+
+    @api.route("/dns-logs", methods=["GET"])
+    def get_dns_logs():
+        """Real-time DNS query telemetry stream for active configuration."""
+        config_id = request.args.get("id", "default")
+        limit = int(request.args.get("limit", 100))
+        logs = store.get_dns_logs(config_id=config_id, limit=limit)
+        return jsonify({"logs": logs, "count": len(logs)})
+
+    @api.route("/dns-logs/clear", methods=["POST", "DELETE"])
+    def clear_dns_logs():
+        """Clears query telemetry logs."""
+        config_id = request.args.get("id", "default")
+        store.clear_dns_logs(config_id=config_id)
+        return jsonify({"status": "cleared"})
+
     return api

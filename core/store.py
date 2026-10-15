@@ -142,6 +142,42 @@ class HubStore:
                 );
             """)
 
+            # 7. NextDNS-Style Multi-Tenant Configurations Table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS configurations (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    adblock_enabled INTEGER DEFAULT 1,
+                    adult_block_enabled INTEGER DEFAULT 1,
+                    created_at REAL NOT NULL
+                );
+            """)
+
+            # 8. Linked Public WAN IPs (Zero-Touch Router Association)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS linked_ips (
+                    ip TEXT PRIMARY KEY,
+                    config_id TEXT NOT NULL,
+                    auto_link INTEGER DEFAULT 1,
+                    updated_at REAL NOT NULL
+                );
+            """)
+
+            # 9. Real-Time DNS Query Telemetry Logs Stream
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS dns_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    config_id TEXT DEFAULT 'default',
+                    client_ip TEXT NOT NULL,
+                    device_name TEXT DEFAULT '',
+                    domain TEXT NOT NULL,
+                    qtype TEXT DEFAULT 'A',
+                    status TEXT DEFAULT 'ALLOWED',
+                    timestamp REAL NOT NULL
+                );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_time ON dns_logs(timestamp DESC);")
+
             # Seed default 10 ports if empty
             cur = conn.execute("SELECT COUNT(*) FROM ports;")
             if cur.fetchone()[0] == 0:
@@ -187,6 +223,16 @@ class HubStore:
             }
             for k, v in default_settings.items():
                 conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);", (k, v))
+
+            # Seed default NextDNS SaaS profile and link active WAN IP
+            conn.execute("""
+                INSERT OR IGNORE INTO configurations (id, name, adblock_enabled, adult_block_enabled, created_at)
+                VALUES ('default', 'OfficialUM1 Network Shield', 1, 1, ?);
+            """, (time.time(),))
+            conn.execute("""
+                INSERT OR IGNORE INTO linked_ips (ip, config_id, auto_link, updated_at)
+                VALUES ('103.72.2.41', 'default', 1, ?);
+            """, (time.time(),))
 
             conn.commit()
 
@@ -382,10 +428,91 @@ class HubStore:
                 INSERT INTO wifi_devices (ip, mac, name, type, status, assigned_port, last_seen)
                 VALUES (?, ?, ?, ?, 'SHIELDED', ?, ?)
                 ON CONFLICT(ip) DO UPDATE SET
-                    name = excluded.name,
-                    mac = CASE WHEN excluded.mac != '' THEN excluded.mac ELSE wifi_devices.mac END,
-                    last_seen = excluded.last_seen;
+                name = excluded.name,
+                mac = CASE WHEN excluded.mac != '' THEN excluded.mac ELSE wifi_devices.mac END,
+                last_seen = excluded.last_seen;
             """, (ip.strip(), mac.strip(), name.strip(), dev_type, port, time.time()))
+            conn.commit()
+
+    # ========== NEXTDNS-STYLE MULTI-TENANT & LINKED IP API ==========
+    def get_or_create_config(self, config_id: str = "default", name: str = "OfficialUM1 Network Shield") -> Dict[str, Any]:
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT * FROM configurations WHERE id = ?;", (config_id,))
+            row = cur.fetchone()
+            if row:
+                return dict(row)
+            conn.execute("""
+                INSERT INTO configurations (id, name, adblock_enabled, adult_block_enabled, created_at)
+                VALUES (?, ?, 1, 1, ?);
+            """, (config_id, name, time.time()))
+            conn.commit()
+            return {"id": config_id, "name": name, "adblock_enabled": 1, "adult_block_enabled": 1, "created_at": time.time()}
+
+    def link_ip(self, ip: str, config_id: str = "default") -> None:
+        if not ip: return
+        with self._get_conn() as conn:
+            conn.execute("""
+                INSERT INTO linked_ips (ip, config_id, auto_link, updated_at)
+                VALUES (?, ?, 1, ?)
+                ON CONFLICT(ip) DO UPDATE SET config_id = excluded.config_id, updated_at = excluded.updated_at;
+            """, (ip.strip(), config_id, time.time()))
+            conn.commit()
+
+    def unlink_ip(self, ip: str) -> None:
+        if not ip: return
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM linked_ips WHERE ip = ?;", (ip.strip(),))
+            conn.commit()
+
+    def get_linked_ips(self, config_id: str = "default") -> List[str]:
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT ip FROM linked_ips WHERE config_id = ? ORDER BY updated_at DESC;", (config_id,))
+            return [row["ip"] for row in cur.fetchall()]
+
+    def is_ip_linked(self, ip: str, config_id: str = "default") -> bool:
+        if not ip: return False
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT 1 FROM linked_ips WHERE ip = ? AND config_id = ?;", (ip.strip(), config_id))
+            return cur.fetchone() is not None
+
+    def get_config_for_ip(self, ip: str) -> str:
+        if not ip: return "default"
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT config_id FROM linked_ips WHERE ip = ?;", (ip.strip(),))
+            row = cur.fetchone()
+            return row["config_id"] if row else "default"
+
+    def log_dns_query(self, domain: str, qtype: str, client_ip: str, status: str, device_name: str = "", config_id: str = "default") -> None:
+        try:
+            with self._get_conn() as conn:
+                conn.execute("""
+                    INSERT INTO dns_logs (config_id, client_ip, device_name, domain, qtype, status, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?);
+                """, (config_id, client_ip, device_name, domain.lower().rstrip("."), qtype, status, time.time()))
+                # Keep table slim and high-performance (latest 1000 queries)
+                conn.execute("""
+                    DELETE FROM dns_logs WHERE id NOT IN (
+                        SELECT id FROM dns_logs ORDER BY id DESC LIMIT 1000
+                    );
+                """)
+                conn.commit()
+        except Exception:
+            pass
+
+    def get_dns_logs(self, config_id: str = "default", limit: int = 100) -> List[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            cur = conn.execute("""
+                SELECT id, config_id, client_ip, device_name, domain, qtype, status, timestamp
+                FROM dns_logs
+                WHERE config_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?;
+            """, (config_id, limit))
+            return [dict(r) for r in cur.fetchall()]
+
+    def clear_dns_logs(self, config_id: str = "default") -> None:
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM dns_logs WHERE config_id = ?;", (config_id,))
             conn.commit()
 
 class TrafficTracker:
