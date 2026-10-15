@@ -14,6 +14,26 @@ from dnslib import DNSRecord, RR, A, QTYPE, RCODE
 from core.store import HubStore, DATA_DIR
 
 ADBLOCK_CACHE_FILE = os.path.join(DATA_DIR, "adblock_compiled.txt")
+ADULT_CACHE_FILE = os.path.join(DATA_DIR, "adult_compiled.txt")
+
+ADULT_SEED_DOMAINS = [
+    # Top Adult Tubes & Webcam Services
+    "pornhub.com", "xvideos.com", "xnxx.com", "xhamster.com", "chaturbate.com",
+    "stripchat.com", "livejasmin.com", "spankbang.com", "redtube.com", "youporn.com",
+    "tube8.com", "beeg.com", "eporner.com", "txxx.com", "hqporner.com", "tnaflix.com",
+    "fapvid.com", "daftsex.com", "empflix.com", "fuq.com", "porn.com", "cam4.com",
+    "bongacams.com", "camsoda.com", "flirt4free.com", "myfreecams.com", "onlyfans.com",
+    "fansly.com", "manyvids.com", "clips4sale.com", "rule34.xxx", "gelbooru.com",
+    "e-hentai.org", "nhentai.net", "danbooru.donmai.us", "redgifs.com", "erome.com",
+    "nudevista.com", "brazzers.com", "bangbros.com", "realitykings.com", "naughtyamerica.com",
+    "twistys.com", "mofos.com", "pornmd.com", "porn555.com", "thumbzilla.com",
+    "vporn.com", "pornhat.com", "nuvid.com", "motherless.com",
+    # Adult Ad Networks, Popunders & Trackers
+    "exoclick.com", "trafficjunky.com", "ero-advertising.com", "juicyads.com",
+    "adxad.com", "plugrush.com", "adxpansion.com", "trafficstars.com", "popcash.net",
+    "popads.net", "hilltopads.com", "clickadu.com", "chaturbateads.com", "realsrv.com",
+    "syndication.exoclick.com", "ads.trafficjunky.net", "ptwmstcnt.com", "rtb-direct.com"
+]
 
 class DNSCache:
     def __init__(self, max_entries: int = 5000):
@@ -51,6 +71,7 @@ class DnsFirewall:
 
         self.cache = DNSCache()
         self.blocked_domains: Set[str] = set()
+        self.adult_blocked_domains: Set[str] = set()
         self.live_clients: Dict[str, float] = {}
         self._client_lock = threading.Lock()
         self.executor = ThreadPoolExecutor(max_workers=40)
@@ -86,7 +107,20 @@ class DnsFirewall:
             ]
             self.blocked_domains.update(defaults)
 
+        # Load Adult / 18+ Blocklist
+        if os.path.exists(ADULT_CACHE_FILE):
+            try:
+                with open(ADULT_CACHE_FILE, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        dom = line.strip().lower()
+                        if dom and not dom.startswith("#"):
+                            self.adult_blocked_domains.add(dom)
+            except Exception:
+                pass
+        self.adult_blocked_domains.update(ADULT_SEED_DOMAINS)
+
     def download_and_compile_lists(self):
+        # 1. Standard Ad & Tracker Lists
         urls = [
             "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
             "https://adaway.org/hosts.txt"
@@ -117,6 +151,32 @@ class DnsFirewall:
             except Exception:
                 pass
             print(f"[OFFICIALUM1] DNS Ad-Shield compiled with {len(self.blocked_domains):,} blocked threat domains.")
+
+        # 2. Adult 18+ Extension List
+        try:
+            porn_url = "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts"
+            resp = requests.get(porn_url, timeout=15)
+            if resp.status_code == 200:
+                adult_count = 0
+                for line in resp.text.splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[0] in ("0.0.0.0", "127.0.0.1"):
+                        d = parts[1].lower().rstrip(".")
+                        if d and d not in ("localhost", "broadcasthost"):
+                            self.adult_blocked_domains.add(d)
+                            adult_count += 1
+                try:
+                    with open(ADULT_CACHE_FILE, "w", encoding="utf-8") as f:
+                        for d in self.adult_blocked_domains:
+                            f.write(f"{d}\n")
+                except Exception:
+                    pass
+                print(f"[OFFICIALUM1] Adult 18+ Shield compiled with {len(self.adult_blocked_domains):,} explicit domains.")
+        except Exception:
+            pass
 
     def start(self):
         self.running = True
@@ -225,6 +285,15 @@ class DnsFirewall:
                 return True
         return False
 
+    def _is_adult(self, domain: str) -> bool:
+        if domain in self.adult_blocked_domains:
+            return True
+        parts = domain.split(".")
+        for i in range(1, len(parts) - 1):
+            if ".".join(parts[i:]) in self.adult_blocked_domains:
+                return True
+        return False
+
     def _process_packet(self, data: bytes) -> Optional[bytes]:
         try:
             req = DNSRecord.parse(data)
@@ -242,6 +311,13 @@ class DnsFirewall:
         settings = self.store.get_settings()
         if settings.get("dns_adblock_enabled") == "1":
             if self._is_blocked(qname):
+                reply = req.reply()
+                reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
+                return reply.pack()
+
+        # 1b. Adult 18+ Content & Explicit Ads Shield
+        if settings.get("adult_block_enabled", "1") == "1":
+            if self._is_adult(qname):
                 reply = req.reply()
                 reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
                 return reply.pack()

@@ -74,7 +74,9 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             "dns_clients_count": len(dns_clients),
             "dns_adblock": settings.get("dns_adblock_enabled") == "1",
             "proxy_gateway_enabled": settings.get("proxy_gateway_enabled", "1") == "1",
-            "blocked_domains_count": len(dns_firewall.blocked_domains) if dns_firewall else 0
+            "adult_block_enabled": settings.get("adult_block_enabled", "1") == "1",
+            "blocked_domains_count": len(dns_firewall.blocked_domains) if dns_firewall else 0,
+            "adult_domains_count": len(dns_firewall.adult_blocked_domains) if dns_firewall else 0
         })
 
     @api.route("/ports", methods=["GET"])
@@ -185,6 +187,13 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         new_val = "0" if curr else "1"
         store.set_setting("proxy_gateway_enabled", new_val)
         return jsonify({"status": "updated", "proxy_gateway_enabled": new_val == "1"})
+
+    @api.route("/settings/toggle-adult-block", methods=["POST"])
+    def toggle_adult_block():
+        curr = store.get_settings().get("adult_block_enabled", "1") == "1"
+        new_val = "0" if curr else "1"
+        store.set_setting("adult_block_enabled", new_val)
+        return jsonify({"status": "updated", "adult_block_enabled": new_val == "1"})
 
     @api.route("/wifi-devices", methods=["GET"])
     def get_wifi_devices():

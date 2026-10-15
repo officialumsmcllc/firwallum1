@@ -158,6 +158,21 @@
         }
       }
 
+      const adultBtn = document.getElementById('toggleAdultBtn');
+      const adultText = document.getElementById('statAdultBlockedText');
+      const adultCountEl = document.getElementById('statAdultCount');
+      if (adultBtn && adultText) {
+        if (data.adult_block_enabled) {
+          adultBtn.classList.remove('off');
+          adultText.textContent = 'Active';
+          if (adultCountEl) adultCountEl.textContent = '18+ adult sites & explicit ads blocked';
+        } else {
+          adultBtn.classList.add('off');
+          adultText.textContent = 'Allowed';
+          if (adultCountEl) adultCountEl.textContent = 'Adult filter disabled';
+        }
+      }
+
       const proxyBtn = document.getElementById('toggleProxyGatewayBtn');
       const proxyText = document.getElementById('statProxyGatewayText');
       const proxySub = document.getElementById('statProxyGatewaySub');
@@ -603,6 +618,18 @@
       refreshPorts();
     }
   });
+
+  // --- TOGGLE ADULT 18+ SHIELD ---
+  const toggleAdultBtn = document.getElementById('toggleAdultBtn');
+  if (toggleAdultBtn) {
+    toggleAdultBtn.addEventListener('click', async () => {
+      const res = await apiPost('settings/toggle-adult-block', {});
+      if (res) {
+        showToast(`Adult 18+ Shield is now ${res.adult_block_enabled ? 'ACTIVE (Blocked)' : 'DISABLED (Allowed)'}`);
+        refreshStatus();
+      }
+    });
+  }
 
   // --- COPY HUB IP ---
   document.getElementById('copyHubIpBtn').addEventListener('click', () => {
