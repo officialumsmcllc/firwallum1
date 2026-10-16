@@ -316,9 +316,9 @@
       // Format Live Speed
       let speedStr = '<span style="color:var(--text-sub); font-size:11px;">0 KB/s</span>';
       if (d.speed_kbps > 100) {
-        speedStr = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#34d399; font-weight:600; font-size:11px;">⚡ ${d.speed_kbps} KB/s</span>`;
+        speedStr = `<span class="badge" style="background:rgba(16,185,129,0.18); color:#34d399; font-weight:700; font-size:11px; border: 1px solid rgba(16,185,129,0.4);">⚡ ${d.speed_kbps} KB/s</span>`;
       } else if (d.speed_kbps > 0) {
-        speedStr = `<span class="badge" style="background:rgba(59,130,246,0.12); color:#60a5fa; font-weight:600; font-size:11px;">⚡ ${d.speed_kbps} KB/s</span>`;
+        speedStr = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; font-weight:600; font-size:11px; border: 1px solid rgba(59,130,246,0.3);">⚡ ${d.speed_kbps} KB/s</span>`;
       }
 
       return `
@@ -347,7 +347,7 @@
               
               ${isBlocked
                 ? `<button class="btn btn-secondary btn-sm unblock-btn" data-ip="${d.ip}" style="padding: 3px 9px; font-size: 11px; color: #10b981;">🟢 Restore</button>`
-                : `<button class="btn btn-danger btn-sm kick-btn" data-ip="${d.ip}" data-mac="${d.mac}" style="padding: 3px 9px; font-size: 11px;">🚫 Kick</button>`}
+                : `<button class="btn btn-danger btn-sm force-kill-btn" data-ip="${d.ip}" style="padding: 3px 9px; font-size: 11px; background: rgba(239,68,68,0.25); border: 1px solid #ef4444; color: #fca5a5;" title="Instantly cut off all internet connection for this device">⚡ Cut-Off</button>`}
             </div>
           </td>
         </tr>
@@ -362,6 +362,18 @@
         await apiPost('wifi-devices/pause', { ip, paused: shouldPause });
         showToast(shouldPause ? `⏸️ Internet paused on ${ip}` : `▶️ Internet restored on ${ip}`);
         refreshWifiDevices();
+      });
+    });
+
+    // Event Listeners for Force Kill / Cut-Off Buttons
+    document.querySelectorAll('.force-kill-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const ip = e.currentTarget.getAttribute('data-ip');
+        if (confirm(`⚡ Hard cut-off internet for ${ip}? Zero web pages or apps will resolve until restored.`)) {
+          await apiPost('wifi-devices/force-kill', { ip });
+          showToast(`⚡ Device ${ip} internet completely severed & blocked!`);
+          refreshWifiDevices();
+        }
       });
     });
 

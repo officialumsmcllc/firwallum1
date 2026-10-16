@@ -212,7 +212,9 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
 
     @api.route("/wifi-devices", methods=["GET"])
     def get_wifi_devices():
-        config_id = request.args.get("config", "default")
+        config_id = request.args.get("config") or request.args.get("id") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
         hub_ip = store.get_settings().get("hub_ip", "192.168.100.158")
 
         # 1. Fetch persistent devices scoped strictly to this customer tenant config
@@ -227,13 +229,17 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             dev["display_ip"] = raw_ip.split("#")[0] if "#" in raw_ip else raw_ip
 
             is_blk = store.is_client_blocked(raw_ip) or store.is_client_blocked(dev["display_ip"])
+            is_psd = store.is_client_paused(raw_ip) or store.is_client_paused(dev["display_ip"])
             db_b = int(dev.get("bytes_used") or 0)
             st = traffic_tracker.get_stats(raw_ip, db_bytes=db_b)
             dev["is_blocked"] = is_blk
-            dev["status"] = "BLOCKED" if is_blk else (dev.get("status") or "SHIELDED")
+            dev["is_paused"] = is_psd
+            dev["status"] = "BLOCKED" if is_blk else ("PAUSED" if is_psd else (dev.get("status") or "SHIELDED"))
             dev["speed_kbps"] = st["speed_kbps"]
+            dev["speed_mbps"] = st["speed_mbps"]
             dev["total_mb"] = st["total_mb"]
             dev["total_gb"] = st["total_gb"]
+            dev["is_active"] = st["is_active"]
             dev["assigned_port"] = dev.get("assigned_port") or store.get_port_for_client_ip(dev["display_ip"])
             devices.append(dev)
 
@@ -246,6 +252,15 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             "hub_ip": hub_ip,
             "config_id": config_id
         })
+
+    @api.route("/wifi-devices/force-kill", methods=["POST"])
+    def force_kill_device():
+        data = request.json or {}
+        ip = data.get("ip")
+        if not ip:
+            return jsonify({"error": "Missing IP"}), 400
+        store.block_client(ip, reason="Force Killed by User")
+        return jsonify({"status": "killed", "ip": ip, "message": f"Device {ip} hard cut-off. Internet completely blocked."})
 
     @api.route("/wifi-devices/sync", methods=["POST"])
     def sync_wifi_devices():
@@ -655,6 +670,112 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             "configured": bool(token),
             "account_id": account_id,
             "token_masked": token_masked
+        })
+
+    @api.route("/admin/tenants", methods=["GET"])
+    def admin_get_tenants():
+        """Returns all customer tenant profiles, active devices, and query counts."""
+        return jsonify(store.get_all_tenants())
+
+    @api.route("/admin/tenants/create", methods=["POST"])
+    def admin_create_tenant():
+        """Creates a new dedicated customer profile."""
+        data = request.json or {}
+        tid = data.get("id") or f"cfg_{secrets.token_hex(4)}"
+        name = data.get("name") or "Customer Shield"
+        owner = data.get("owner_name", "")
+        email = data.get("owner_email", "")
+        plan = data.get("plan_tier", "home_pro")
+        days = int(data.get("days_valid", 30))
+        t = store.create_tenant(tid, name, owner, email, plan, days)
+        return jsonify({"status": "created", "tenant": t})
+
+    @api.route("/admin/tenants/update", methods=["POST"])
+    def admin_update_tenant():
+        """Updates parental control shields and features for a tenant."""
+        data = request.json or {}
+        tid = data.get("id")
+        if not tid:
+            return jsonify({"error": "Missing tenant ID"}), 400
+        updates = data.get("updates", {})
+        store.update_tenant_features(tid, updates)
+        return jsonify({"status": "updated"})
+
+    @api.route("/admin/tenants/renew", methods=["POST"])
+    def admin_renew_tenant_endpoint():
+        """Renews customer subscription and restores internet access."""
+        data = request.json or {}
+        tid = data.get("id") or data.get("config_id") or "cfg_officialum1"
+        days = int(data.get("days", 30))
+        res = store.renew_tenant(tid, days)
+        from core.cloudflare_bridge import toggle_kill_switch
+        toggle_kill_switch(store, enabled=False)
+        return jsonify({"status": "renewed", "tenant": res})
+
+    @api.route("/admin/tenants/suspend", methods=["POST"])
+    def admin_suspend_tenant_endpoint():
+        """Suspends customer subscription and instantly cuts off internet."""
+        data = request.json or {}
+        tid = data.get("id") or data.get("config_id") or "cfg_officialum1"
+        store.suspend_tenant(tid)
+        from core.cloudflare_bridge import toggle_kill_switch
+        cf_res = toggle_kill_switch(store, enabled=True)
+        return jsonify({"status": "suspended", "id": tid, "cloudflare": cf_res})
+
+    @api.route("/admin/tenants/delete", methods=["POST"])
+    def admin_delete_tenant_endpoint():
+        """Deletes customer tenant profile."""
+        data = request.json or {}
+        tid = data.get("id")
+        if tid == "cfg_officialum1":
+            return jsonify({"error": "Cannot delete master enterprise profile"}), 400
+        store.delete_tenant(tid)
+        return jsonify({"status": "deleted", "id": tid})
+
+    @api.route("/admin/tenants/force-renew", methods=["POST"])
+    def admin_force_renew_tenant():
+        """Instantly cuts off internet for a customer until they renew subscription."""
+        data = request.json or {}
+        config_id = data.get("config_id") or data.get("id") or "cfg_officialum1"
+        store.suspend_tenant(config_id)
+        from core.cloudflare_bridge import toggle_kill_switch
+        cf_res = toggle_kill_switch(store, enabled=True)
+        return jsonify({
+            "status": "success",
+            "config_id": config_id,
+            "internet_state": "SEVERED",
+            "message": f"Network severed for {config_id}. Internet resolution is hard blocked until subscription renewal.",
+            "cloudflare": cf_res
+        })
+
+    @api.route("/admin/tenants/restore", methods=["POST"])
+    def admin_restore_tenant():
+        """Restores internet access and extends subscription for customer."""
+        data = request.json or {}
+        config_id = data.get("config_id") or data.get("id") or "cfg_officialum1"
+        days = int(data.get("days", 30))
+        store.renew_tenant(config_id, days=days)
+        from core.cloudflare_bridge import toggle_kill_switch
+        cf_res = toggle_kill_switch(store, enabled=False)
+        return jsonify({
+            "status": "success",
+            "config_id": config_id,
+            "internet_state": "ACTIVE",
+            "message": f"Internet access restored for {config_id} (+{days} days extension)!",
+            "cloudflare": cf_res
+        })
+
+    @api.route("/admin/kill-switch", methods=["POST"])
+    def admin_toggle_kill_switch():
+        """Global or per-network instant kill switch toggle."""
+        data = request.json or {}
+        enabled = bool(data.get("enabled", True))
+        from core.cloudflare_bridge import toggle_kill_switch
+        res = toggle_kill_switch(store, enabled=enabled)
+        return jsonify({
+            "status": "success",
+            "kill_switch_active": enabled,
+            "result": res
         })
 
     return api

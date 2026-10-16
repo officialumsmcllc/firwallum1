@@ -141,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="btn-action-sm btn-suspend" data-id="${t.id}" data-status="${t.status}" title="${isActive ? 'Suspend' : 'Reactivate'}">
                   ${isActive ? '⏸️ Suspend' : '▶️ Resume'}
                 </button>
+                <button class="btn-action-sm btn-force-kill" data-id="${t.id}" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4);" title="Force Renew / Instant Network Kill Switch">⚡ Kill Net</button>
                 <a href="/?config=${t.id}" target="_blank" class="btn-action-sm" style="background: rgba(59,130,246,0.2); color: #60a5fa; text-decoration: none;">👁️ View</a>
                 ${t.id !== 'cfg_officialum1' ? `<button class="btn-action-sm btn-del" data-id="${t.id}">🗑️</button>` : ''}
               </div>
@@ -194,6 +195,21 @@ document.addEventListener('DOMContentLoaded', () => {
               body: JSON.stringify({ id: tid })
             });
           }
+          fetchTenants();
+        });
+      });
+
+      // Wire Force Kill Net
+      document.querySelectorAll('.btn-force-kill').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const tid = btn.dataset.id;
+          if (!confirm(`Force kill network for tenant '${tid}'? Zero internet traffic will resolve until renewed.`)) return;
+          btn.textContent = 'Killing...';
+          await fetch('/api/admin/tenants/force-renew', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: tid })
+          });
           fetchTenants();
         });
       });

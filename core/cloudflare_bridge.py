@@ -123,3 +123,58 @@ def sync_cloudflare_location(store, client_ip: str, config_id: str) -> Dict[str,
             "ipv4_dns": ["172.64.36.1", "172.64.36.2"],
             "message": str(e)
         }
+
+def toggle_kill_switch(store, enabled: bool) -> Dict[str, Any]:
+    """
+    Instantly enables or disables the Cloudflare Zero Trust Kill Switch rule.
+    When enabled=True, 100% of DNS resolution on Anycast IPs (172.64.36.1/2) is blocked,
+    severing all internet access for connected devices until renewed.
+    """
+    token, account_id = get_cf_credentials(store)
+    if not token or not account_id:
+        return {"success": False, "message": "Missing Cloudflare credentials"}
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/gateway/rules"
+        rules_res = requests.get(url, headers=headers, timeout=8).json()
+        rules = rules_res.get("result", [])
+
+        target_rule = None
+        for r in rules:
+            if "Kill Switch" in r.get("name", ""):
+                target_rule = r
+                break
+
+        if not target_rule:
+            traffic_expr = 'not(any(dns.domains[*] in {"officialum1.com"}))'
+            payload = {
+                "name": "OFFICIALUM1 - Instant Internet Kill Switch",
+                "description": "Completely cuts off all internet DNS resolution when account is suspended or forced renew",
+                "enabled": enabled,
+                "action": "block",
+                "traffic": traffic_expr,
+                "precedence": 500
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=8).json()
+            return {"success": res.get("success", False), "enabled": enabled, "rule_id": res.get("result", {}).get("id")}
+
+        rule_id = target_rule["id"]
+        put_url = f"{url}/{rule_id}"
+        payload = {
+            "name": target_rule["name"],
+            "enabled": enabled,
+            "action": target_rule["action"],
+            "traffic": target_rule["traffic"],
+            "precedence": target_rule.get("precedence", 500)
+        }
+        res = requests.put(put_url, headers=headers, json=payload, timeout=8).json()
+        return {"success": res.get("success", False), "enabled": enabled, "rule_id": rule_id}
+    except Exception as e:
+        logger.error(f"Error toggling Cloudflare kill switch: {e}")
+        return {"success": False, "error": str(e)}
+
