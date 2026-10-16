@@ -11,12 +11,13 @@ import requests
 CLOUD_SYNC_URL = "https://hub.officialum1.com/api/wifi-devices/sync"
 
 KNOWN_MAP = {
+    "48:4D:7E:E9:25:DD": {"name": "Host PC (Firewall Admin)", "type": "Core Server Laptop (LAN)"},
     "E2:06:16:AA:1E:5F": {"name": "Infinix HOT 11 Play", "type": "Android Smartphone (Wi-Fi)"},
+    "1E:91:0C:0E:DB:42": {"name": "Infinix HOT 11 Play", "type": "Android Smartphone (Wi-Fi)"},
     "9A:23:8C:65:4D:D5": {"name": "Vivo V2109", "type": "Android Smartphone (Wi-Fi)"},
     "38:BA:F8:84:F3:05": {"name": "Client PC Laptop (PC 02)", "type": "Windows Laptop (Wi-Fi)"},
     "D8:FC:92:58:8B:12": {"name": "Wireless Device (lwp0)", "type": "Wi-Fi Client"},
     "08:CC:81:18:C9:98": {"name": "Ethernet Device (Port 1)", "type": "LAN Client"},
-    "1E:91:0C:0E:DB:42": {"name": "Mobile Device", "type": "Smartphone (Wi-Fi)"},
     "5E:E4:9F:53:4E:49": {"name": "Mobile Device", "type": "Smartphone (Wi-Fi)"},
 }
 
@@ -57,6 +58,18 @@ def scan_and_sync():
                         "name": name,
                         "type": dev_type
                     })
+
+        # Windows 'arp -a' does not list the local host machine itself.
+        # Explicitly add Host PC (192.168.100.158) so all 7 router devices are accounted for.
+        host_ip = "192.168.100.158"
+        host_mac = "48:4D:7E:E9:25:DD"
+        if not any(d["ip"] == host_ip for d in devices):
+            devices.insert(0, {
+                "ip": host_ip,
+                "mac": host_mac,
+                "name": "Host PC (Firewall Admin)",
+                "type": "Core Server Laptop (LAN)"
+            })
 
         if devices:
             resp = requests.post(CLOUD_SYNC_URL, json={"devices": devices}, timeout=6)
