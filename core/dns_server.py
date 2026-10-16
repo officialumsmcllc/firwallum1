@@ -416,7 +416,15 @@ class DnsFirewall:
 
         # 0a. Device 1-Click Internet Pause / Hard Block Cut-Off
         clean_ip = client_ip.split("#")[0] if "#" in client_ip else client_ip
-        if self.store.is_client_blocked(client_ip) or self.store.is_client_blocked(clean_ip) or self.store.is_client_paused(client_ip) or self.store.is_client_paused(clean_ip):
+        dev_blocked = (
+            self.store.is_client_blocked(client_ip) or 
+            self.store.is_client_blocked(clean_ip) or 
+            (device_name and self.store.is_client_blocked(device_name)) or
+            self.store.is_client_paused(client_ip) or 
+            self.store.is_client_paused(clean_ip) or
+            (device_name and self.store.is_client_paused(device_name))
+        )
+        if dev_blocked:
             self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_KICKED", device_name=device_name, config_id=config_id)
             reply = req.reply()
             reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=1))

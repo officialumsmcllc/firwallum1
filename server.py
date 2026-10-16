@@ -146,8 +146,25 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
             with dns_firewall._client_lock:
                 dns_firewall.live_clients[client_key] = time.time()
 
-        if store.is_client_blocked(raw_ip) or store.is_client_blocked(client_key):
-            return Response(b"", status=403)
+        is_blocked = (
+            store.is_client_blocked(raw_ip) or 
+            store.is_client_blocked(client_key) or 
+            (dev_tag and store.is_client_blocked(dev_tag)) or
+            store.is_client_paused(raw_ip) or 
+            store.is_client_paused(client_key) or 
+            (dev_tag and store.is_client_paused(dev_tag))
+        )
+        if is_blocked:
+            # Immediate hard cut-off: return 0.0.0.0 for DNS query so internet is dead
+            try:
+                from dnslib import DNSRecord, RR, QTYPE, A
+                raw_d = request.get_data() if request.method == "POST" else base64.urlsafe_b64decode(request.args.get("dns", "") + "==")
+                req_rec = DNSRecord.parse(raw_d)
+                rep = req_rec.reply()
+                rep.add_answer(RR(req_rec.q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=1))
+                return Response(rep.pack(), mimetype="application/dns-message")
+            except Exception:
+                return Response(b"", status=403)
 
         if request.method == "POST":
             data = request.get_data()

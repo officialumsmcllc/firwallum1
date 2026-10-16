@@ -500,12 +500,33 @@ class HubStore:
             conn.execute("UPDATE wifi_devices SET status = 'SHIELDED' WHERE ip = ? OR ip LIKE ?;", (clean_ip, f"{base_ip}%"))
             conn.commit()
 
-    def is_client_blocked(self, ip: str) -> bool:
-        if not ip: return False
-        clean_ip = ip.strip()
-        base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
+    def is_client_blocked(self, identifier: str, config_id: str = "") -> bool:
+        if not identifier: return False
+        clean = identifier.strip()
+        base = clean.split("#")[0].split(" - ")[0] if ("#" in clean or " - " in clean) else clean
         with self._get_conn() as conn:
-            cur = conn.execute("SELECT 1 FROM blocked_clients WHERE ip = ? OR ip = ?;", (clean_ip, base_ip))
+            cur = conn.execute("SELECT 1 FROM blocked_clients WHERE ip = ? OR ip = ? OR ip LIKE ?;", (clean, base, f"%{clean}%"))
+            if cur.fetchone() is not None:
+                return True
+            cur2 = conn.execute("""
+                SELECT 1 FROM wifi_devices 
+                WHERE (ip = ? OR ip = ? OR name = ? OR name LIKE ? OR ip LIKE ?) 
+                  AND status = 'BLOCKED';
+            """, (clean, base, clean, f"%{clean}%", f"%{clean}%"))
+            if cur2.fetchone() is not None:
+                return True
+        return False
+
+    def is_client_paused(self, identifier: str) -> bool:
+        if not identifier: return False
+        clean = identifier.strip()
+        base = clean.split("#")[0].split(" - ")[0] if ("#" in clean or " - " in clean) else clean
+        with self._get_conn() as conn:
+            cur = conn.execute("""
+                SELECT 1 FROM wifi_devices 
+                WHERE (ip = ? OR ip = ? OR name = ? OR name LIKE ? OR ip LIKE ?) 
+                  AND status = 'PAUSED';
+            """, (clean, base, clean, f"%{clean}%", f"%{clean}%"))
             return cur.fetchone() is not None
 
     def get_wifi_devices(self, config_id: str = "cfg_officialum1") -> List[Dict[str, Any]]:

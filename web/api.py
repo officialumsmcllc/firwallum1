@@ -259,8 +259,18 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         ip = data.get("ip")
         if not ip:
             return jsonify({"error": "Missing IP"}), 400
-        store.block_client(ip, reason="Force Killed by User")
-        return jsonify({"status": "killed", "ip": ip, "message": f"Device {ip} hard cut-off. Internet completely blocked."})
+        stored_devs = store.get_wifi_devices()
+        dev_name = ""
+        dev_mac = ""
+        for d in stored_devs:
+            if d.get("ip") == ip or d.get("display_ip") == ip:
+                dev_name = d.get("name", "")
+                dev_mac = d.get("mac", "")
+                break
+        store.block_client(ip, mac=dev_mac, reason="Force Killed by User")
+        if dev_name:
+            store.block_client(dev_name, mac=dev_mac, reason="Force Killed by User")
+        return jsonify({"status": "killed", "ip": ip, "name": dev_name, "message": f"Device {dev_name or ip} hard cut-off. Internet completely blocked."})
 
     @api.route("/wifi-devices/sync", methods=["POST"])
     def sync_wifi_devices():
@@ -463,8 +473,16 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         is_paused = bool(data.get("paused", True))
         if not ip:
             return jsonify({"error": "Missing IP"}), 400
+        stored_devs = store.get_wifi_devices()
+        dev_name = ""
+        for d in stored_devs:
+            if d.get("ip") == ip or d.get("display_ip") == ip:
+                dev_name = d.get("name", "")
+                break
         store.pause_device(ip, is_paused)
-        return jsonify({"status": "updated", "ip": ip, "paused": is_paused})
+        if dev_name:
+            store.pause_device(dev_name, is_paused)
+        return jsonify({"status": "updated", "ip": ip, "name": dev_name, "paused": is_paused})
 
     @api.route("/dns-logs", methods=["GET"])
     def get_dns_logs():
