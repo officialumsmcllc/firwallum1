@@ -279,6 +279,15 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
                 store.upsert_wifi_device(ip=ip, name=name, mac=mac, dev_type=dev_type)
         return jsonify({"status": "synced", "count": len(incoming_devices)})
 
+    @api.route("/wifi-devices/delete", methods=["POST", "DELETE"])
+    def delete_wifi_device():
+        data = request.json or {}
+        ip = data.get("ip")
+        if not ip:
+            return jsonify({"error": "Missing IP"}), 400
+        store.delete_wifi_device(ip)
+        return jsonify({"status": "deleted", "ip": ip})
+
     @api.route("/wifi-devices/block", methods=["POST"])
     def block_wifi_device():
         data = request.json or {}

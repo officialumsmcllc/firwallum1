@@ -253,26 +253,25 @@ class HubStore:
                     (8110, "PC 10 (Team Member)")
                 ]
                 conn.executemany("INSERT INTO ports (port, device_name) VALUES (?, ?);", default_ports)
-            # Seed persistent Huawei Router Devices with Smart TV & Real Bandwidth Baseline
+            # Seed persistent Huawei Router Devices with real router devices
             cur = conn.execute("SELECT COUNT(*) FROM wifi_devices;")
             if cur.fetchone()[0] == 0:
                 default_router_devices = [
-                    ("192.168.100.15", "cfg_officialum1", "E2:06:16:AA:1E:5F", "Infinix HOT 11 Play", "Android Smartphone (Wi-Fi)", "SHIELDED", 8103, 154800000, 18.5, time.time()),
-                    ("192.168.100.18", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, 285400000, 32.0, time.time()),
-                    ("192.168.100.22", "cfg_officialum1", "38:BA:F8:84:F3:05", "Client PC Laptop (PC 02)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, 1420000000, 114.2, time.time()),
-                    ("192.168.100.31", "cfg_officialum1", "D8:FC:92:58:8B:12", "Samsung Crystal UHD 4K TV", "Smart TV (Wi-Fi Streaming)", "SHIELDED", 8105, 3850000000, 240.5, time.time()),
-                    ("192.168.100.2", "cfg_officialum1", "08:CC:81:18:C9:98", "Ethernet Workstation (Port 1)", "LAN Desktop PC", "SHIELDED", 8106, 890000000, 4.0, time.time()),
-                    ("192.168.100.45", "cfg_officialum1", "1E:91:0C:0E:DB:42", "Sony PlayStation 5", "Gaming Console (Wi-Fi)", "SHIELDED", 8107, 4520000000, 310.0, time.time()),
-                    ("192.168.100.67", "cfg_officialum1", "5E:E4:9F:53:4E:49", "iPhone 14 Pro", "Apple Smartphone (Wi-Fi)", "SHIELDED", 8108, 620000000, 45.0, time.time()),
+                    ("192.168.100.95", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, 385000000, 32.0, time.time()),
+                    ("192.168.100.137", "cfg_officialum1", "38:BA:F8:84:F3:05", "Client PC Laptop (PC 02)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, 1420000000, 114.2, time.time()),
+                    ("192.168.100.61", "cfg_officialum1", "08:CC:81:18:C9:98", "Ethernet Device (Port 1)", "LAN Client", "SHIELDED", 8106, 890000000, 4.0, time.time()),
+                    ("192.168.100.139", "cfg_officialum1", "D8:FC:92:58:8B:12", "Wireless Device (lwp0)", "Wi-Fi Client", "SHIELDED", 8105, 540000000, 24.5, time.time()),
+                    ("192.168.100.98", "cfg_officialum1", "1E:91:0C:0E:DB:42", "Mobile Device", "Smartphone (Wi-Fi)", "SHIELDED", 8107, 210000000, 18.5, time.time()),
                 ]
                 conn.executemany("""
                     INSERT OR IGNORE INTO wifi_devices (ip, config_id, mac, name, type, status, assigned_port, bytes_used, last_speed_kbps, last_seen)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """, default_router_devices)
             else:
-                conn.execute("""
-                    UPDATE wifi_devices SET bytes_used = 240000000, last_speed_kbps = 24.5 WHERE bytes_used = 0;
-                """)
+                # Clean up legacy fake dummy devices
+                fake_dummy_ips = ("192.168.100.15", "192.168.100.18", "192.168.100.22", "192.168.100.31", "192.168.100.2", "192.168.100.45", "192.168.100.67")
+                placeholders = ",".join("?" for _ in fake_dummy_ips)
+                conn.execute(f"DELETE FROM wifi_devices WHERE ip IN ({placeholders});", fake_dummy_ips)
 
             # Seed default settings
             default_settings = {
@@ -542,6 +541,13 @@ class HubStore:
         base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
         with self._get_conn() as conn:
             conn.execute("UPDATE wifi_devices SET status = ? WHERE ip = ? OR ip LIKE ?;", (status, clean_ip, f"{base_ip}%"))
+            conn.commit()
+
+    def delete_wifi_device(self, ip: str) -> None:
+        clean_ip = ip.strip()
+        base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM wifi_devices WHERE ip = ? OR ip LIKE ?;", (clean_ip, f"{base_ip}%"))
             conn.commit()
 
     def is_client_paused(self, ip: str) -> bool:
