@@ -307,6 +307,15 @@ class HubStore:
             conn.execute("DELETE FROM users WHERE username = 'demo';")
             conn.execute("DELETE FROM configurations WHERE id = 'default';")
 
+            # Seed permanent enterprise user officialum1 if users table is empty
+            user_cnt = conn.execute("SELECT COUNT(*) FROM users;").fetchone()[0]
+            if user_cnt == 0:
+                pwd_hash, salt = self.hash_password("admintelecom")
+                conn.execute("""
+                    INSERT INTO users (username, email, password_hash, salt, full_name, role, config_id, plan_tier, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """, ("officialum1", "admin@officialum1.com", pwd_hash, salt, "OfficialUM1 Enterprise", "customer", "cfg_officialum1", "business", "active", time.time()))
+
             conn.commit()
 
     def get_ports(self) -> List[Dict[str, Any]]:
