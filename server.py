@@ -110,17 +110,35 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
         return Response(pac_code, mimetype="application/x-ns-proxy-autoconfig")
 
     @app.route("/dns-query", methods=["GET", "POST"])
-    @app.route("/dns-query/<device_name>", methods=["GET", "POST"])
-    def doh_query(device_name=None):
+    @app.route("/dns-query/<p1>", methods=["GET", "POST"])
+    @app.route("/dns-query/<p1>/<p2>", methods=["GET", "POST"])
+    def doh_query(p1=None, p2=None):
         """
-        RFC 8484 DNS-over-HTTPS (DoH) Endpoint with NextDNS-style Device Tagging.
+        RFC 8484 DNS-over-HTTPS (DoH) Endpoint with Multi-Tenant & Device Tagging.
         Supports:
         - https://hub.officialum1.com/dns-query
-        - https://hub.officialum1.com/dns-query/Infinix-Hot-11
-        - https://hub.officialum1.com/dns-query/Vivo-V2109
+        - https://hub.officialum1.com/dns-query/<device_name>
+        - https://hub.officialum1.com/dns-query/<config_id>/<device_name>
+        - https://hub.officialum1.com/dns-query?config=<config_id>&device=<device_name>
         """
         raw_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
-        dev_tag = device_name or request.args.get("device") or request.args.get("name")
+
+        # Resolve config_id and device_name from path or query parameters
+        target_config = request.args.get("config", "").strip()
+        dev_tag = request.args.get("device") or request.args.get("name") or ""
+
+        if p1 and p2:
+            target_config = p1
+            dev_tag = p2
+        elif p1:
+            if p1.startswith("cfg_"):
+                target_config = p1
+            else:
+                dev_tag = p1
+
+        if not target_config:
+            target_config = store.get_config_for_ip(raw_ip)
+
         client_key = f"{raw_ip} - {dev_tag}" if dev_tag else raw_ip
 
         # Track client in firewall
@@ -139,7 +157,9 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
                 return jsonify({
                     "status": "OFFICIALUM1 Cloud DoH Active",
                     "spec": "RFC 8484 DNS-over-HTTPS",
-                    "engine": "OFFICIALUM1 Security Firewall"
+                    "engine": "OFFICIALUM1 Security Firewall",
+                    "config_id": target_config,
+                    "client_ip": raw_ip
                 }), 200
             padding = '=' * (4 - len(dns_b64) % 4) if len(dns_b64) % 4 != 0 else ''
             try:
@@ -150,12 +170,14 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
         if not data:
             return "No DNS payload", 400
 
-        resp = dns_firewall._process_packet(data, client_ip=raw_ip, device_name=dev_tag or "")
+        resp = dns_firewall._process_packet(data, client_ip=raw_ip, device_name=dev_tag or "", config_id=target_config)
         if not resp:
             return "Resolution Failed", 500
 
         from core.store import traffic_tracker
         traffic_tracker.record(client_key, len(data) + len(resp))
+        if target_config:
+            traffic_tracker.record(f"{target_config}:{raw_ip}", len(data) + len(resp))
 
         return Response(response=[bytes(resp)], mimetype="application/dns-message", headers={
             "Content-Length": str(len(resp)),

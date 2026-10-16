@@ -30,7 +30,17 @@
       if (nameEl) {
         nameEl.textContent = `${u.full_name || u.username} [${(u.plan_tier || 'PRO').toUpperCase()}]`;
       }
+      const adminNavBtn = document.getElementById('adminConsoleNavBtn');
+      if (adminNavBtn) {
+        if (u.role === 'admin' || localStorage.getItem('officialum1_admin_auth') === 'active') {
+          adminNavBtn.style.display = 'inline-flex';
+        } else {
+          adminNavBtn.style.display = 'none';
+        }
+      }
     } else if (isGuest) {
+      const adminNavBtn = document.getElementById('adminConsoleNavBtn');
+      if (adminNavBtn) adminNavBtn.style.display = 'none';
       if (nameEl) nameEl.textContent = 'Guest Visitor';
       if (logoutBtn) {
         logoutBtn.textContent = '🔑 Log In';
@@ -476,10 +486,19 @@
 
         updateLinkIpButton(res.is_linked);
 
-        if (res.is_using_officialum1) {
+        if (res.is_linked) {
           banner.className = 'nextdns-status-banner active';
           mainText.innerHTML = '🟢 All good! This network is actively shielded by OFFICIALUM1.';
           subText.textContent = `Router WAN IP ${res.client_ip} is linked to configuration '${currentConfigId}'. All devices protected.`;
+        } else if (res.is_remote_view) {
+          banner.className = 'nextdns-status-banner active';
+          const routerIps = (res.linked_ips || []).join(', ');
+          mainText.innerHTML = '🟢 Home Network Protected (Remote Mobile View)';
+          subText.textContent = `Your Home Router WAN IP (${routerIps}) is actively shielded. Viewing dashboard remotely from mobile network (${res.client_ip}).`;
+        } else if (res.is_using_officialum1) {
+          banner.className = 'nextdns-status-banner active';
+          mainText.innerHTML = '🟢 Shield Active: Protected by OFFICIALUM1.';
+          subText.textContent = `Network traffic on configuration '${currentConfigId}' is actively shielded.`;
         } else {
           banner.className = 'nextdns-status-banner inactive';
           mainText.innerHTML = '🔴 This network is not using this configuration.';

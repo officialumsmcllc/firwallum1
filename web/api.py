@@ -64,26 +64,30 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         ports = store.get_ports()
         cfg = store.get_or_create_config(config_id)
         is_active = store.is_config_active(config_id)
-        active_count = sum(1 for p in ports if p.get("status") == "ACTIVE")
-        dns_clients = dns_firewall.get_active_clients() if dns_firewall else []
-        total_active = max(active_count, len(dns_clients))
+
+        # Scoped strictly to this customer tenant's devices
+        tenant_devices = store.get_wifi_devices(config_id=config_id)
+        active_devices_count = len(tenant_devices)
+
         return jsonify({
             "status": "ONLINE" if is_active else "SUSPENDED",
             "hub_ip": settings.get("hub_ip", "127.0.0.1"),
             "config_id": config_id,
             "config_name": cfg.get("name", "OfficialUM1 Network Shield"),
+            "tenant_name": cfg.get("name", "OfficialUM1 Network Shield"),
             "is_active": is_active,
             "plan_tier": cfg.get("plan_tier", "home_pro"),
             "expires_at": cfg.get("expires_at", 0),
             "total_ports": len(ports),
-            "active_devices": total_active,
-            "proxy_active_count": active_count,
-            "dns_clients": dns_clients,
-            "dns_clients_count": len(dns_clients),
-            "dns_adblock": cfg.get("adblock_enabled", 1) == 1 and settings.get("dns_adblock_enabled") == "1",
+            "active_devices": active_devices_count,
+            "proxy_active_count": sum(1 for p in ports if p.get("status") == "ACTIVE"),
+            "dns_clients": [d["ip"] for d in tenant_devices],
+            "dns_clients_count": active_devices_count,
+            "dns_adblock": cfg.get("adblock_enabled", 1) == 1,
             "proxy_gateway_enabled": settings.get("proxy_gateway_enabled", "1") == "1",
-            "adult_block_enabled": cfg.get("adult_block_enabled", 1) == 1 and settings.get("adult_block_enabled", "1") == "1",
+            "adult_block_enabled": cfg.get("adult_block_enabled", 1) == 1,
             "smart_tv_shield": cfg.get("smart_tv_shield", 1) == 1,
+            "safesearch_enabled": cfg.get("safesearch_enabled", 1) == 1,
             "blocked_domains_count": len(dns_firewall.blocked_domains) if dns_firewall else 0,
             "adult_domains_count": len(dns_firewall.adult_blocked_domains) if dns_firewall else 0
         })
@@ -207,68 +211,31 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
     @api.route("/wifi-devices", methods=["GET"])
     def get_wifi_devices():
         config_id = request.args.get("config", "default")
-        dns_clients = dns_firewall.get_active_clients(timeout_sec=600) if dns_firewall else []
         hub_ip = store.get_settings().get("hub_ip", "192.168.100.158")
 
-        # 1. Start with persistent Router & Wi-Fi inventory from store for this config
+        # 1. Fetch persistent devices scoped strictly to this customer tenant config
         stored_devs = store.get_wifi_devices(config_id=config_id)
-        dev_map = {d["ip"]: dict(d) for d in stored_devs}
-
-        # 2. Add/update dynamic ARP clients if on local Windows
-        import platform
-        if platform.system() == "Windows" and config_id in ("default", "all"):
-            try:
-                out = subprocess.check_output("arp -a", shell=True, text=True, errors="ignore", timeout=0.8)
-                for line in out.splitlines():
-                    parts = line.strip().split()
-                    if len(parts) >= 3 and parts[0].startswith("192.168.100."):
-                        ip = parts[0]
-                        mac = parts[1].replace("-", ":").upper()
-                        ip_type = parts[2]
-                        if ip_type.lower() == "dynamic" and ip not in ("192.168.100.1", hub_ip):
-                            info = KNOWN_DEVICE_MAP.get(mac, {})
-                            dev_name = info.get("name", f"Wi-Fi Client ({ip})")
-                            dev_type = info.get("type", "Wireless Mobile / PC")
-                            store.upsert_wifi_device(ip=ip, name=dev_name, mac=mac, dev_type=dev_type, config_id="default")
-                            if ip not in dev_map:
-                                dev_map[ip] = {
-                                    "ip": ip, "mac": mac, "name": dev_name, "type": dev_type,
-                                    "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(ip),
-                                    "bytes_used": 150000000, "config_id": "default"
-                                }
-            except Exception:
-                pass
-
-        # 3. Add live cloud DNS clients
-        for raw_entry in dns_clients:
-            if raw_entry not in ("192.168.100.1", hub_ip, "127.0.0.1", "::1"):
-                parts = raw_entry.split(" - ")
-                dev_ip = parts[0]
-                dev_name = parts[1] if len(parts) > 1 else f"Wi-Fi Client ({dev_ip})"
-                dev_type = "Smart TV (Wi-Fi Streaming)" if any(t in dev_name.lower() for t in ("tv", "samsung", "lg", "bravia")) else ("Gaming Console (Wi-Fi)" if any(c in dev_name.lower() for c in ("ps5", "xbox", "switch")) else "Active Wi-Fi Device")
-                if dev_ip not in dev_map:
-                    store.upsert_wifi_device(ip=raw_entry, name=dev_name, mac="--", dev_type=dev_type, config_id=config_id, initial_bytes=180000000)
-                    dev_map[raw_entry] = {
-                        "ip": raw_entry, "mac": "--", "name": dev_name, "type": dev_type,
-                        "status": "SHIELDED", "assigned_port": store.get_port_for_client_ip(raw_entry),
-                        "bytes_used": 180000000, "config_id": config_id
-                    }
 
         from core.store import traffic_tracker
         devices = []
-        for ip, d in dev_map.items():
-            is_blk = store.is_client_blocked(d["ip"])
-            db_b = int(d.get("bytes_used") or 0)
-            st = traffic_tracker.get_stats(d["ip"], db_bytes=db_b)
-            d["is_blocked"] = is_blk
-            d["status"] = "BLOCKED" if is_blk else (d.get("status") or "SHIELDED")
-            d["speed_kbps"] = st["speed_kbps"]
-            d["total_mb"] = st["total_mb"]
-            d["total_gb"] = st["total_gb"]
-            d["assigned_port"] = d.get("assigned_port") or store.get_port_for_client_ip(d["ip"])
-            devices.append(d)
+        for d in stored_devs:
+            dev = dict(d)
+            raw_ip = dev["ip"]
+            # Clean display identifier (strip internal tag hash if any)
+            dev["display_ip"] = raw_ip.split("#")[0] if "#" in raw_ip else raw_ip
 
-        # Sort nicely: first unblocked, then by data used
+            is_blk = store.is_client_blocked(raw_ip) or store.is_client_blocked(dev["display_ip"])
+            db_b = int(dev.get("bytes_used") or 0)
+            st = traffic_tracker.get_stats(raw_ip, db_bytes=db_b)
+            dev["is_blocked"] = is_blk
+            dev["status"] = "BLOCKED" if is_blk else (dev.get("status") or "SHIELDED")
+            dev["speed_kbps"] = st["speed_kbps"]
+            dev["total_mb"] = st["total_mb"]
+            dev["total_gb"] = st["total_gb"]
+            dev["assigned_port"] = dev.get("assigned_port") or store.get_port_for_client_ip(dev["display_ip"])
+            devices.append(dev)
+
+        # Sort: active unblocked first, then by data used
         devices.sort(key=lambda d: (1 if d["is_blocked"] else 0, -d["total_mb"]))
 
         return jsonify({
@@ -340,18 +307,27 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
     def detect_dns_usage():
         """NextDNS-style real-time verification: checks if current browser/network is using the firewall."""
         client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
-        config_id = store.get_config_for_ip(client_ip)
-        is_linked = store.is_ip_linked(client_ip, config_id)
-        
+        config_id = request.args.get("config") or store.get_config_for_ip(client_ip) or "default"
+        is_current_ip_linked = store.is_ip_linked(client_ip, config_id)
+        linked_ips = store.get_linked_ips(config_id)
+        has_any_linked = len(linked_ips) > 0
+
         # Check recent queries
-        recent_logs = store.get_dns_logs(config_id=config_id, limit=5)
-        has_recent = any(log["client_ip"] == client_ip for log in recent_logs)
-        
+        recent_logs = store.get_dns_logs(config_id=config_id, limit=10)
+        has_recent = any(log["client_ip"] in linked_ips or log["client_ip"] == client_ip for log in recent_logs)
+
+        # Remote access detection (e.g. user opening from 4G mobile data while home router IP is linked)
+        is_remote_view = has_any_linked and not is_current_ip_linked
+        is_active = is_current_ip_linked or has_any_linked
+
         return jsonify({
-            "is_using_officialum1": is_linked or has_recent,
+            "is_using_officialum1": is_active,
             "client_ip": client_ip,
             "config_id": config_id,
-            "is_linked": is_linked,
+            "is_linked": is_current_ip_linked,
+            "has_any_linked": has_any_linked,
+            "linked_ips": linked_ips,
+            "is_remote_view": is_remote_view,
             "has_recent_queries": has_recent
         })
 
@@ -359,7 +335,7 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
     def get_config_info():
         """Returns SaaS configuration details and linked public IPs."""
         client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
-        config_id = request.args.get("id") or store.get_config_for_ip(client_ip)
+        config_id = request.args.get("id") or request.args.get("config") or store.get_config_for_ip(client_ip)
         config = store.get_or_create_config(config_id)
         linked_ips = store.get_linked_ips(config_id)
         return jsonify({
@@ -376,12 +352,19 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         client_ip = data.get("ip") or request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
         config_id = data.get("config_id", "default")
         action = data.get("action", "link")
-        
+
         if action == "unlink":
             store.unlink_ip(client_ip)
             return jsonify({"status": "unlinked", "ip": client_ip, "config_id": config_id})
         else:
             store.link_ip(client_ip, config_id)
+            # Auto-register Home Router Gateway device
+            store.upsert_wifi_device(
+                ip=client_ip,
+                name=f"Home Wi-Fi Router ({client_ip})",
+                dev_type="Router Gateway (DHCP DNS)",
+                config_id=config_id
+            )
             return jsonify({"status": "linked", "ip": client_ip, "config_id": config_id})
 
     @api.route("/config/update-shields", methods=["POST"])

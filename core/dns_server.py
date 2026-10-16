@@ -97,15 +97,18 @@ class DnsFirewall:
                             self.blocked_domains.add(dom)
             except Exception:
                 pass
-        else:
-            # Seed essential heavy tracker/ad domains immediately
-            defaults = [
-                "doubleclick.net", "adservice.google.com", "pagead2.googlesyndication.com",
-                "analytics.google.com", "ads.youtube.com", "graph.facebook.com",
-                "pixel.facebook.com", "ads-api.twitter.com", "analytics.tiktok.com",
-                "telemetry.microsoft.com", "vortex.data.microsoft.com", "crashlytics.com"
-            ]
-            self.blocked_domains.update(defaults)
+        # Seed essential heavy tracker/ad domains immediately (Always ensure these are blocked)
+        defaults = [
+            "doubleclick.net", "adservice.google.com", "pagead2.googlesyndication.com",
+            "analytics.google.com", "ads.youtube.com", "s.youtube.com", "video-stats.l.google.com",
+            "youtube-nocookie.com", "pubads.g.doubleclick.net", "googleads.g.doubleclick.net",
+            "static.doubleclick.net", "securepubads.g.doubleclick.net", "partnerad.l.doubleclick.net",
+            "ad.doubleclick.net", "adclick.g.doubleclick.net", "graph.facebook.com",
+            "pixel.facebook.com", "ads-api.twitter.com", "analytics.tiktok.com",
+            "telemetry.microsoft.com", "vortex.data.microsoft.com", "crashlytics.com",
+            "scorecardresearch.com", "adnxs.com", "advertising.com", "criteo.com", "outbrain.com", "taboola.com"
+        ]
+        self.blocked_domains.update(defaults)
 
         # Load Adult / 18+ Blocklist
         if os.path.exists(ADULT_CACHE_FILE):
@@ -294,7 +297,56 @@ class DnsFirewall:
                 return True
         return False
 
-    def _process_packet(self, data: bytes, client_ip: str = "127.0.0.1", device_name: str = "") -> Optional[bytes]:
+    def _auto_discover_device(self, client_ip: str, qname: str, device_name: str, config_id: str, packet_len: int):
+        """Zero-Touch Device Discovery from real-time DNS queries (No local PC needed)."""
+        if not config_id or config_id in ("none", ""):
+            return
+
+        # 1. If explicit device tag passed (via DoH / Private DNS)
+        if device_name:
+            clean_name = device_name.replace("-", " ").title()
+            d_type = "Android Smartphone (DoH)" if any(k in clean_name.lower() for k in ("phone", "android", "vivo", "infinix", "samsung", "oppo", "redmi", "xiaomi")) else (
+                "Smart TV (DoH)" if any(k in clean_name.lower() for k in ("tv", "roku", "tizen", "webos")) else (
+                    "Laptop / PC (DoH)" if any(k in clean_name.lower() for k in ("pc", "laptop", "mac", "windows")) else "Connected Client (DoH)"
+                )
+            )
+            dev_key = f"{client_ip}#{device_name}"
+            self.store.upsert_wifi_device(ip=dev_key, name=clean_name, dev_type=d_type, config_id=config_id, initial_bytes=packet_len)
+            return
+
+        # 2. If Router DHCP DNS (Queries arrive from linked Public WAN IP)
+        router_ip = client_ip.split(":")[0] if ":" in client_ip else client_ip
+        if router_ip in ("127.0.0.1", "::1", "localhost"):
+            return
+
+        # Register primary router gateway
+        router_name = f"Home Wi-Fi Router ({router_ip})"
+        self.store.upsert_wifi_device(ip=router_ip, name=router_name, dev_type="Router Gateway (DHCP DNS)", config_id=config_id, initial_bytes=packet_len)
+
+        # Fingerprint devices by queried domain signatures
+        qn = qname.lower()
+        detected = None
+        if any(k in qn for k in ("samsungcloudplatform.com", "samsungqbe.com", "ssp.samsung.com", "ads.samsung.com", "log-config.samsungcloudcdn.com")):
+            detected = ("samsung-tv", "Samsung Smart TV", "Smart TV (Wi-Fi Streaming)")
+        elif any(k in qn for k in ("lgsmartad.com", "lgtvcommon.com", "lge.com", "lgappstv.com")):
+            detected = ("lg-tv", "LG Smart TV", "Smart TV (Wi-Fi Streaming)")
+        elif any(k in qn for k in ("roku.com", "firetv-ad", "bravia", "androidtv")):
+            detected = ("streaming-tv", "Streaming Player (Smart TV / Roku)", "Smart TV (Wi-Fi Streaming)")
+        elif any(k in qn for k in ("connectivitycheck.android.com", "android.clients.google.com", "gvt1.com", "transsion.com", "vivo.com", "xiaomi.com", "oppo.com")):
+            detected = ("android-phone", "Android Mobile (Wi-Fi)", "Android Smartphone (Wi-Fi)")
+        elif any(k in qn for k in ("mask.icloud.com", "gateway.icloud.com", "apple-dns.net", "push.apple.com", "weather-data.apple.com")):
+            detected = ("apple-device", "Apple iPhone / Mac (Wi-Fi)", "Apple Device (Wi-Fi)")
+        elif any(k in qn for k in ("dns.msftncsi.com", "msftconnecttest.com", "windowsupdate.com", "settings-win.data.microsoft.com")):
+            detected = ("windows-pc", "Windows PC / Laptop (Wi-Fi)", "Windows Laptop (Wi-Fi)")
+        elif any(k in qn for k in ("playstation.net", "playstation.com", "xboxlive.com", "nintendo.net")):
+            detected = ("gaming-console", "PlayStation / Gaming Console (Wi-Fi)", "Gaming Console (Wi-Fi)")
+
+        if detected:
+            d_id, d_name, d_type = detected
+            dev_key = f"{router_ip}#{d_id}"
+            self.store.upsert_wifi_device(ip=dev_key, name=d_name, dev_type=d_type, config_id=config_id, initial_bytes=packet_len)
+
+    def _process_packet(self, data: bytes, client_ip: str = "127.0.0.1", device_name: str = "", config_id: str = "") -> Optional[bytes]:
         try:
             req = DNSRecord.parse(data)
         except Exception:
@@ -308,14 +360,20 @@ class DnsFirewall:
         qtype_num = q.qtype
         qtype_str = str(QTYPE.get(qtype_num, "A"))
 
-        # Lookup configuration for this linked client IP
-        config_id = self.store.get_config_for_ip(client_ip)
+        # Lookup configuration for this client if not provided
+        if not config_id:
+            config_id = self.store.get_config_for_ip(client_ip)
+
+        # Auto-discover and register active device without requiring local PC
+        self._auto_discover_device(client_ip=client_ip, qname=qname, device_name=device_name, config_id=config_id, packet_len=len(data))
+
+        # Fetch tenant entitlement and policies
+        cfg = self.store.get_or_create_config(config_id)
 
         # 0. Subscription Paywall & Expiry Check (Feature 3)
         if not self.store.is_config_active(config_id):
             self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_EXPIRED", device_name=device_name, config_id=config_id)
             reply = req.reply()
-            # Redirect to Cloud Hub so browser displays /expired paywall screen
             reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("172.64.36.1"), ttl=30))
             return reply.pack()
 
@@ -326,29 +384,29 @@ class DnsFirewall:
             reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=10))
             return reply.pack()
 
-        # 0b. Smart TV Telemetry & Ad-Block Shield (Feature 5)
-        smart_tv_trackers = (
-            "samsungcloudplatform.com", "samsungqbe.com", "log-config.samsungcloudcdn.com",
-            "ssp.samsung.com", "ads.samsung.com", "lgsmartad.com", "lgtvcommon.com",
-            "scribe.logs.roku.com", "logs.roku.com", "firetv-ad.amazon.com", "device-metrics-us.amazon.com"
-        )
-        if any(qname == st or qname.endswith("." + st) for st in smart_tv_trackers):
-            self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_SMART_TV", device_name=device_name, config_id=config_id)
-            reply = req.reply()
-            reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
-            return reply.pack()
+        # 0b. Smart TV Telemetry & Video Ad Tracker Shield
+        if cfg.get("smart_tv_shield", 1) == 1:
+            smart_tv_trackers = (
+                "samsungcloudplatform.com", "samsungqbe.com", "log-config.samsungcloudcdn.com",
+                "ssp.samsung.com", "ads.samsung.com", "lgsmartad.com", "lgtvcommon.com",
+                "scribe.logs.roku.com", "logs.roku.com", "firetv-ad.amazon.com", "device-metrics-us.amazon.com"
+            )
+            if any(qname == st or qname.endswith("." + st) for st in smart_tv_trackers):
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_SMART_TV", device_name=device_name, config_id=config_id)
+                reply = req.reply()
+                reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
+                return reply.pack()
 
-        # 1. Adblock check
-        settings = self.store.get_settings()
-        if settings.get("dns_adblock_enabled") == "1":
+        # 1. Per-Tenant DNS Adblock Check (controlled by dashboard toggle)
+        if cfg.get("adblock_enabled", 1) == 1:
             if self._is_blocked(qname):
                 self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_AD", device_name=device_name, config_id=config_id)
                 reply = req.reply()
                 reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
                 return reply.pack()
 
-        # 1b. Adult 18+ Content & Explicit Ads Shield
-        if settings.get("adult_block_enabled", "1") == "1":
+        # 1b. Per-Tenant Adult 18+ Content & Explicit Ads Shield
+        if cfg.get("adult_block_enabled", 1) == 1:
             if self._is_adult(qname):
                 self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_ADULT", device_name=device_name, config_id=config_id)
                 reply = req.reply()

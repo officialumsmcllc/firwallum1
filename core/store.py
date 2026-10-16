@@ -504,7 +504,7 @@ class HubStore:
         with self._get_conn() as conn:
             conn.execute("""
                 INSERT INTO wifi_devices (ip, config_id, mac, name, type, status, assigned_port, bytes_used, last_seen)
-                VALUES (?, ?, ?, ?, 'SHIELDED', ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, 'SHIELDED', ?, ?, ?)
                 ON CONFLICT(ip) DO UPDATE SET
                 config_id = CASE WHEN excluded.config_id != 'default' THEN excluded.config_id ELSE wifi_devices.config_id END,
                 name = excluded.name,
