@@ -407,7 +407,9 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
     @api.route("/dns-logs", methods=["GET"])
     def get_dns_logs():
         """Real-time DNS query telemetry stream for active configuration."""
-        config_id = request.args.get("id", "default")
+        config_id = request.args.get("config") or request.args.get("id") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
         limit = int(request.args.get("limit", 100))
         logs = store.get_dns_logs(config_id=config_id, limit=limit)
         return jsonify({"logs": logs, "count": len(logs)})
@@ -415,7 +417,9 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
     @api.route("/dns-logs/clear", methods=["POST", "DELETE"])
     def clear_dns_logs():
         """Clears query telemetry logs."""
-        config_id = request.args.get("id", "default")
+        config_id = request.args.get("config") or request.args.get("id") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
         store.clear_dns_logs(config_id=config_id)
         return jsonify({"status": "cleared"})
 

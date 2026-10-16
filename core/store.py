@@ -721,7 +721,9 @@ class HubStore:
         except Exception:
             pass
 
-    def get_dns_logs(self, config_id: str = "default", limit: int = 100) -> List[Dict[str, Any]]:
+    def get_dns_logs(self, config_id: str = "cfg_officialum1", limit: int = 100) -> List[Dict[str, Any]]:
+        if config_id == "default":
+            config_id = "cfg_officialum1"
         with self._get_conn() as conn:
             if config_id and config_id != "all":
                 cur = conn.execute("""

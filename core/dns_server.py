@@ -369,6 +369,7 @@ class DnsFirewall:
 
         # Fetch tenant entitlement and policies
         cfg = self.store.get_or_create_config(config_id)
+        settings = self.store.get_settings()
 
         # 0. Subscription Paywall & Expiry Check (Feature 3)
         if not self.store.is_config_active(config_id):
