@@ -321,8 +321,18 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         mac = data.get("mac", "")
         if not ip:
             return jsonify({"error": "Missing IP"}), 400
+        stored_devs = store.get_wifi_devices()
+        dev_name = ""
+        for d in stored_devs:
+            if d.get("ip") == ip or d.get("display_ip") == ip:
+                dev_name = d.get("name", "")
+                if not mac:
+                    mac = d.get("mac", "")
+                break
         store.block_client(ip, mac)
-        return jsonify({"status": "blocked", "ip": ip})
+        if dev_name:
+            store.block_client(dev_name, mac)
+        return jsonify({"status": "blocked", "ip": ip, "name": dev_name})
 
     @api.route("/wifi-devices/unblock", methods=["POST"])
     def unblock_wifi_device():

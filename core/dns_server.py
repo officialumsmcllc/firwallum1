@@ -10,7 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 import requests
 from typing import Optional, Dict, Tuple, Set
-from dnslib import DNSRecord, RR, A, QTYPE, RCODE
+from dnslib import DNSRecord, RR, A, AAAA, QTYPE, RCODE
 from core.store import HubStore, DATA_DIR
 
 ADBLOCK_CACHE_FILE = os.path.join(DATA_DIR, "adblock_compiled.txt")
@@ -233,9 +233,15 @@ class DnsFirewall:
                 try:
                     req = DNSRecord.parse(data)
                     reply = req.reply()
-                    reply.add_answer(RR(req.q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=10))
+                    qtype = req.q.qtype if req.q else QTYPE.A
+                    if qtype == QTYPE.AAAA:
+                        reply.add_answer(RR(req.q.qname, QTYPE.AAAA, rdata=AAAA("::"), ttl=5))
+                    else:
+                        reply.add_answer(RR(req.q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=5))
                     if self.udp_sock and self.running:
                         self.udp_sock.sendto(reply.pack(), addr)
+                    qname = str(req.q.qname).rstrip(".").lower() if req.q else "unknown"
+                    self.store.log_dns_query(domain=qname, qtype=str(QTYPE.get(qtype, "A")), client_ip=addr[0], status="BLOCKED_KICKED", device_name="")
                 except Exception:
                     pass
                 return
@@ -253,8 +259,26 @@ class DnsFirewall:
     def _handle_tcp(self, client: socket.socket, addr: Tuple[str, int]):
         if addr and addr[0]:
             if self.store.is_client_blocked(addr[0]) or self.store.is_client_paused(addr[0]):
-                try: client.close()
-                except Exception: pass
+                try:
+                    client.settimeout(2.0)
+                    raw_len = client.recv(2)
+                    if len(raw_len) == 2:
+                        mlen = int.from_bytes(raw_len, "big")
+                        data = client.recv(mlen)
+                        req = DNSRecord.parse(data)
+                        reply = req.reply()
+                        qtype = req.q.qtype if req.q else QTYPE.A
+                        if qtype == QTYPE.AAAA:
+                            reply.add_answer(RR(req.q.qname, QTYPE.AAAA, rdata=AAAA("::"), ttl=5))
+                        else:
+                            reply.add_answer(RR(req.q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=5))
+                        packed = reply.pack()
+                        client.sendall(len(packed).to_bytes(2, "big") + packed)
+                except Exception:
+                    pass
+                finally:
+                    try: client.close()
+                    except Exception: pass
                 return
 
             with self._client_lock:

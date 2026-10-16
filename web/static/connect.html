@@ -170,7 +170,7 @@
       <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">
         Settings ➔ Connections ➔ Private DNS ➔ Provider hostname:
       </p>
-      <code style="color: #34d399; font-weight: 600;">hub.officialum1.com</code>
+      <code style="color: #34d399; font-weight: 600;">l7zasdrw78.cloudflare-gateway.com</code>
       <button class="btn" id="copyPrivateDnsBtn" style="margin-top: 8px;">📋 Copy Hostname</button>
     </div>
 
@@ -224,7 +224,7 @@
     const copyPrivateBtn = document.getElementById('copyPrivateDnsBtn');
     if (copyPrivateBtn) {
       copyPrivateBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText('hub.officialum1.com');
+        navigator.clipboard.writeText('l7zasdrw78.cloudflare-gateway.com');
         copyPrivateBtn.textContent = '✅ Hostname Copied!';
         setTimeout(() => {
           copyPrivateBtn.textContent = '📋 Copy Hostname';

@@ -496,8 +496,17 @@ class HubStore:
         clean_ip = ip.strip()
         base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
         with self._get_conn() as conn:
+            cur = conn.execute("SELECT name, mac FROM wifi_devices WHERE ip = ? OR ip = ?;", (clean_ip, base_ip))
+            row = cur.fetchone()
+            d_name = row["name"] if row else ""
+            d_mac = row["mac"] if row else ""
+
             conn.execute("DELETE FROM blocked_clients WHERE ip = ? OR ip = ?;", (clean_ip, base_ip))
-            conn.execute("UPDATE wifi_devices SET status = 'SHIELDED' WHERE ip = ? OR ip LIKE ?;", (clean_ip, f"{base_ip}%"))
+            if d_name:
+                conn.execute("DELETE FROM blocked_clients WHERE ip = ?;", (d_name,))
+            if d_mac:
+                conn.execute("DELETE FROM blocked_clients WHERE mac = ?;", (d_mac,))
+            conn.execute("UPDATE wifi_devices SET status = 'SHIELDED' WHERE ip = ? OR ip LIKE ? OR name = ?;", (clean_ip, f"{base_ip}%", d_name))
             conn.commit()
 
     def is_client_blocked(self, identifier: str, config_id: str = "") -> bool:
