@@ -17,22 +17,22 @@ def test_saas_auth():
     print(">>> 1. Initializing HubStore...")
     store = HubStore()
 
-    # 1. Test Demo User Exists
+    # 1. Test Enterprise User officialum1 Exists
     users = store.get_all_users()
     print(f"    Total users found: {len(users)}")
-    demo_user = next((u for u in users if u["username"] == "demo"), None)
-    assert demo_user is not None, "Demo user should exist in users table"
-    print(f"    [OK] Demo user verified: id={demo_user['id']}, plan={demo_user['plan_tier']}")
+    ent_user = next((u for u in users if u["username"] == "officialum1"), None)
+    assert ent_user is not None, "officialum1 user should exist in users table"
+    print(f"    [OK] Enterprise user verified: id={ent_user['id']}, plan={ent_user['plan_tier']}")
 
-    # 2. Test Authenticate Demo User
-    auth_demo = store.authenticate_user("demo", "demo123")
-    assert auth_demo is not None, "Demo user should authenticate with demo123"
-    assert auth_demo["username"] == "demo"
-    assert "token" in auth_demo
-    print("    [OK] Demo authentication successful.")
+    # 2. Test Authenticate Enterprise User
+    auth_ent = store.authenticate_user("officialum1", "admintelecom")
+    assert auth_ent is not None, "officialum1 user should authenticate with admintelecom"
+    assert auth_ent["username"] == "officialum1"
+    assert "token" in auth_ent
+    print("    [OK] Enterprise authentication successful.")
 
     # 3. Test Invalid Password
-    bad_auth = store.authenticate_user("demo", "wrongpass")
+    bad_auth = store.authenticate_user("officialum1", "wrongpass")
     assert bad_auth is None, "Bad password should fail authentication"
     print("    [OK] Invalid password correctly rejected.")
 

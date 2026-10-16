@@ -672,66 +672,6 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             "token_masked": token_masked
         })
 
-    @api.route("/admin/tenants", methods=["GET"])
-    def admin_get_tenants():
-        """Returns all customer tenant profiles, active devices, and query counts."""
-        return jsonify(store.get_all_tenants())
-
-    @api.route("/admin/tenants/create", methods=["POST"])
-    def admin_create_tenant():
-        """Creates a new dedicated customer profile."""
-        data = request.json or {}
-        tid = data.get("id") or f"cfg_{secrets.token_hex(4)}"
-        name = data.get("name") or "Customer Shield"
-        owner = data.get("owner_name", "")
-        email = data.get("owner_email", "")
-        plan = data.get("plan_tier", "home_pro")
-        days = int(data.get("days_valid", 30))
-        t = store.create_tenant(tid, name, owner, email, plan, days)
-        return jsonify({"status": "created", "tenant": t})
-
-    @api.route("/admin/tenants/update", methods=["POST"])
-    def admin_update_tenant():
-        """Updates parental control shields and features for a tenant."""
-        data = request.json or {}
-        tid = data.get("id")
-        if not tid:
-            return jsonify({"error": "Missing tenant ID"}), 400
-        updates = data.get("updates", {})
-        store.update_tenant_features(tid, updates)
-        return jsonify({"status": "updated"})
-
-    @api.route("/admin/tenants/renew", methods=["POST"])
-    def admin_renew_tenant_endpoint():
-        """Renews customer subscription and restores internet access."""
-        data = request.json or {}
-        tid = data.get("id") or data.get("config_id") or "cfg_officialum1"
-        days = int(data.get("days", 30))
-        res = store.renew_tenant(tid, days)
-        from core.cloudflare_bridge import toggle_kill_switch
-        toggle_kill_switch(store, enabled=False)
-        return jsonify({"status": "renewed", "tenant": res})
-
-    @api.route("/admin/tenants/suspend", methods=["POST"])
-    def admin_suspend_tenant_endpoint():
-        """Suspends customer subscription and instantly cuts off internet."""
-        data = request.json or {}
-        tid = data.get("id") or data.get("config_id") or "cfg_officialum1"
-        store.suspend_tenant(tid)
-        from core.cloudflare_bridge import toggle_kill_switch
-        cf_res = toggle_kill_switch(store, enabled=True)
-        return jsonify({"status": "suspended", "id": tid, "cloudflare": cf_res})
-
-    @api.route("/admin/tenants/delete", methods=["POST"])
-    def admin_delete_tenant_endpoint():
-        """Deletes customer tenant profile."""
-        data = request.json or {}
-        tid = data.get("id")
-        if tid == "cfg_officialum1":
-            return jsonify({"error": "Cannot delete master enterprise profile"}), 400
-        store.delete_tenant(tid)
-        return jsonify({"status": "deleted", "id": tid})
-
     @api.route("/admin/tenants/force-renew", methods=["POST"])
     def admin_force_renew_tenant():
         """Instantly cuts off internet for a customer until they renew subscription."""
