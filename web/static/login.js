@@ -250,13 +250,13 @@ async function handleLogin(e) {
     // Persist customer session
     localStorage.setItem('um1_user_token', data.user.token);
     localStorage.setItem('um1_user_info', JSON.stringify(data.user));
-    localStorage.setItem('um1_user_config_id', data.user.config_id || 'default');
+    localStorage.setItem('um1_user_config_id', data.user.config_id || 'cfg_officialum1');
 
     showMsg('Access Granted! Connecting to Personal Security Mesh...', false);
     submitBtn.innerHTML = '<span>Access Granted 🚀</span>';
 
     setTimeout(() => {
-      window.location.href = `/?config=${encodeURIComponent(data.user.config_id || 'default')}`;
+      window.location.href = `/?config=${encodeURIComponent(data.user.config_id || 'cfg_officialum1')}`;
     }, 600);
 
   } catch (err) {

@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   ${isActive ? '⏸️ Suspend' : '▶️ Resume'}
                 </button>
                 <a href="/?config=${t.id}" target="_blank" class="btn-action-sm" style="background: rgba(59,130,246,0.2); color: #60a5fa; text-decoration: none;">👁️ View</a>
-                ${t.id !== 'default' ? `<button class="btn-action-sm btn-del" data-id="${t.id}">🗑️</button>` : ''}
+                ${t.id !== 'cfg_officialum1' ? `<button class="btn-action-sm btn-del" data-id="${t.id}">🗑️</button>` : ''}
               </div>
             </td>
           </tr>

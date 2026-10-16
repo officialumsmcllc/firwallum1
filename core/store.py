@@ -289,25 +289,23 @@ class HubStore:
             for k, v in default_settings.items():
                 conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);", (k, v))
 
-            # Seed default NextDNS SaaS profile and link active WAN IP
+            # Seed default profile cfg_officialum1 and link active WAN IP
             conn.execute("""
                 INSERT OR IGNORE INTO configurations (id, name, owner_name, plan_tier, status, adblock_enabled, adult_block_enabled, smart_tv_shield, created_at, expires_at)
-                VALUES ('default', 'OfficialUM1 Network Shield', 'Master Account', 'business', 'active', 1, 1, 1, ?, ?);
+                VALUES ('cfg_officialum1', 'OfficialUM1 Enterprise Shield', 'OfficialUM1 Enterprise', 'business', 'active', 1, 1, 1, ?, ?);
             """, (time.time(), time.time() + 365 * 86400))
             conn.execute("""
                 INSERT OR IGNORE INTO linked_ips (ip, config_id, auto_link, updated_at)
-                VALUES ('103.72.2.41', 'default', 1, ?);
+                VALUES ('103.72.2.7', 'cfg_officialum1', 1, ?);
             """, (time.time(),))
 
-            # Seed default demo customer if users table is empty
-            user_cnt = conn.execute("SELECT COUNT(*) FROM users;").fetchone()[0]
-            if user_cnt == 0:
-                demo_salt = secrets.token_hex(16)
-                demo_hash = hashlib.pbkdf2_hmac("sha256", "demo123".encode("utf-8"), demo_salt.encode("utf-8"), 100000).hex()
-                conn.execute("""
-                    INSERT INTO users (username, email, password_hash, salt, full_name, role, config_id, plan_tier, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """, ("demo", "demo@officialum1.com", demo_hash, demo_salt, "Demo Subscriber", "customer", "default", "home_pro", "active", time.time()))
+            # Auto-migrate any existing 'default' config data into 'cfg_officialum1' and remove 'default'
+            conn.execute("UPDATE OR IGNORE wifi_devices SET config_id = 'cfg_officialum1' WHERE config_id = 'default';")
+            conn.execute("UPDATE OR IGNORE linked_ips SET config_id = 'cfg_officialum1' WHERE config_id = 'default';")
+            conn.execute("UPDATE dns_logs SET config_id = 'cfg_officialum1' WHERE config_id = 'default';")
+            conn.execute("UPDATE users SET config_id = 'cfg_officialum1' WHERE config_id = 'default';")
+            conn.execute("DELETE FROM users WHERE username = 'demo';")
+            conn.execute("DELETE FROM configurations WHERE id = 'default';")
 
             conn.commit()
 
@@ -528,7 +526,9 @@ class HubStore:
             return row is not None and row["status"] == "PAUSED"
 
     # ========== NEXTDNS-STYLE MULTI-TENANT & LINKED IP API ==========
-    def get_or_create_config(self, config_id: str = "default", name: str = "OfficialUM1 Network Shield") -> Dict[str, Any]:
+    def get_or_create_config(self, config_id: str = "cfg_officialum1", name: str = "OfficialUM1 Enterprise Shield") -> Dict[str, Any]:
+        if not config_id or config_id == "default":
+            config_id = "cfg_officialum1"
         with self._get_conn() as conn:
             cur = conn.execute("SELECT * FROM configurations WHERE id = ?;", (config_id,))
             row = cur.fetchone()
@@ -616,7 +616,7 @@ class HubStore:
             conn.commit()
 
     def delete_tenant(self, config_id: str) -> None:
-        if config_id == "default": return
+        if config_id == "cfg_officialum1": return
         with self._get_conn() as conn:
             conn.execute("DELETE FROM configurations WHERE id = ?;", (config_id,))
             conn.execute("DELETE FROM linked_ips WHERE config_id = ?;", (config_id,))

@@ -17,7 +17,7 @@
     return;
   }
 
-  const currentConfigId = urlParams.get('config') || localStorage.getItem('um1_user_config_id') || 'default';
+  const currentConfigId = urlParams.get('config') || localStorage.getItem('um1_user_config_id') || 'cfg_officialum1';
   localStorage.setItem('um1_user_config_id', currentConfigId);
 
   // Setup user profile badge

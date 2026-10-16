@@ -59,7 +59,9 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
 
     @api.route("/status", methods=["GET"])
     def get_status():
-        config_id = request.args.get("config", "default")
+        config_id = request.args.get("config") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
         settings = store.get_settings()
         ports = store.get_ports()
         cfg = store.get_or_create_config(config_id)
@@ -498,10 +500,25 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         """Deletes customer tenant."""
         data = request.json or {}
         tid = data.get("id")
-        if not tid or tid == "default":
+        if not tid or tid == "cfg_officialum1":
             return jsonify({"error": "Cannot delete master tenant"}), 400
         store.delete_tenant(tid)
         return jsonify({"status": "deleted", "id": tid})
+
+    @api.route("/admin/tenants/merge-default", methods=["POST"])
+    def admin_merge_default():
+        """Merges all devices, logs, and linked IPs from 'default' into 'cfg_officialum1' and deletes 'default'."""
+        target = "cfg_officialum1"
+        store.get_or_create_config(target, "OfficialUM1 Enterprise Shield")
+        with store._get_conn() as conn:
+            conn.execute("UPDATE OR IGNORE wifi_devices SET config_id = ? WHERE config_id = 'default';", (target,))
+            conn.execute("UPDATE OR IGNORE linked_ips SET config_id = ? WHERE config_id = 'default';", (target,))
+            conn.execute("UPDATE dns_logs SET config_id = ? WHERE config_id = 'default';", (target,))
+            conn.execute("UPDATE users SET config_id = ? WHERE config_id = 'default';", (target,))
+            conn.execute("DELETE FROM users WHERE username = 'demo';")
+            conn.execute("DELETE FROM configurations WHERE id = 'default';")
+            conn.commit()
+        return jsonify({"status": "success", "message": f"Successfully merged 'default' into '{target}' and removed 'default'!"})
 
     # =========================================================================
     # SAAS CUSTOMER AUTHENTICATION & ADMIN USER CONTROLS
