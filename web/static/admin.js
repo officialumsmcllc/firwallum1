@@ -502,6 +502,8 @@ document.addEventListener('DOMContentLoaded', () => {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Apply Account Upgrade';
     }
+  };
+
   // --- CLOUDFLARE ZERO TRUST INTEGRATION ---
   window.fetchCloudflareSettings = async function() {
     try {
