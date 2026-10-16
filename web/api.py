@@ -267,17 +267,33 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         """
         Receives real-time live device lists from Huawei Router or local probe
         and dynamically registers new devices in the Cloud database.
+        Also automatically detects public WAN IP changes (e.g. after light outage)
+        and auto-syncs Cloudflare Zero Trust without user intervention.
         """
         data = request.json or {}
         incoming_devices = data.get("devices", [])
+        config_id = data.get("config_id") or "cfg_officialum1"
+
+        # Auto-detect WAN IP change on every probe pulse
+        raw_wan_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+        if raw_wan_ip and not raw_wan_ip.startswith("127.") and raw_wan_ip != "::1":
+            linked_ips = store.get_linked_ips(config_id)
+            if raw_wan_ip not in linked_ips:
+                store.link_ip(raw_wan_ip, config_id)
+                try:
+                    from core.cloudflare_bridge import sync_cloudflare_location
+                    sync_cloudflare_location(store, raw_wan_ip, config_id)
+                except Exception:
+                    pass
+
         for dev in incoming_devices:
             ip = dev.get("ip")
             name = dev.get("name") or f"Wi-Fi Client ({ip})"
             mac = dev.get("mac", "")
             dev_type = dev.get("type", "Connected Device")
             if ip:
-                store.upsert_wifi_device(ip=ip, name=name, mac=mac, dev_type=dev_type)
-        return jsonify({"status": "synced", "count": len(incoming_devices)})
+                store.upsert_wifi_device(ip=ip, name=name, mac=mac, dev_type=dev_type, config_id=config_id)
+        return jsonify({"status": "synced", "count": len(incoming_devices), "wan_ip": raw_wan_ip})
 
     @api.route("/wifi-devices/delete", methods=["POST", "DELETE"])
     def delete_wifi_device():
@@ -404,6 +420,28 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
                 "config_id": config_id,
                 "cloudflare": cf_info
             })
+
+    @api.route("/config/ddns", methods=["GET", "POST"])
+    def ddns_auto_update():
+        """
+        Universal Dynamic DNS (DDNS) Webhook for Routers & Cron.
+        When router restarts or power returns, router automatically hits this URL.
+        Grabs new WAN IP, links to config, and updates Cloudflare Zero Trust instantly.
+        """
+        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
+        config_id = request.args.get("config") or request.args.get("id") or "cfg_officialum1"
+        store.link_ip(client_ip, config_id)
+        try:
+            from core.cloudflare_bridge import sync_cloudflare_location
+            cf_info = sync_cloudflare_location(store, client_ip, config_id)
+        except Exception as e:
+            cf_info = {"success": False, "message": str(e)}
+        return jsonify({
+            "status": "updated",
+            "wan_ip": client_ip,
+            "config_id": config_id,
+            "cloudflare": cf_info
+        })
 
     @api.route("/config/update-shields", methods=["POST"])
     def update_customer_shields():

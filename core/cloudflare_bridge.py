@@ -66,25 +66,32 @@ def sync_cloudflare_location(store, client_ip: str, config_id: str) -> Dict[str,
         
         target_loc = None
         for loc in existing:
-            if loc.get("client_ipv4") == client_ip or config_id in loc.get("name", "").lower():
+            # Check networks or name
+            loc_nets = [n.get("network", "").split("/")[0] for n in loc.get("networks", [])]
+            if client_ip in loc_nets or config_id in loc.get("name", "").lower() or loc.get("client_default"):
                 target_loc = loc
                 break
 
         location_name = f"OFFICIALUM1_{config_id}"
 
         if target_loc:
-            # Update IP if needed
+            # Update IP in networks if needed
             loc_id = target_loc["id"]
-            if target_loc.get("client_ipv4") != client_ip:
-                requests.put(f"{loc_url}/{loc_id}", headers=headers, json={
+            current_nets = [n.get("network", "") for n in target_loc.get("networks", [])]
+            desired_net = f"{client_ip}/32"
+            if desired_net not in current_nets:
+                update_payload = {
                     "name": target_loc.get("name", location_name),
-                    "client_ipv4": client_ip
-                }, timeout=8)
+                    "networks": [{"network": desired_net}]
+                }
+                if target_loc.get("client_default"):
+                    update_payload["client_default"] = True
+                requests.put(f"{loc_url}/{loc_id}", headers=headers, json=update_payload, timeout=8)
         else:
             # Create new Location bound to customer's Router WAN IP
             payload = {
                 "name": location_name,
-                "client_ipv4": client_ip
+                "networks": [{"network": f"{client_ip}/32"}]
             }
             create_res = requests.post(loc_url, headers=headers, json=payload, timeout=8)
             c_data = create_res.json()

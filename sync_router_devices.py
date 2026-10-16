@@ -66,8 +66,8 @@ def scan_and_sync():
         print(f"[{time.strftime('%H:%M:%S')}] Sync error: {e}")
 
 def run_continuous():
-    print("🚀 OFFICIALUM1 Zero-Touch Router Auto-Sync Daemon Started...")
-    print("📡 Monitoring Huawei HG8245C router for newly connected devices...")
+    print("[OFFICIALUM1] Zero-Touch Router Auto-Sync Daemon Started...")
+    print("[OFFICIALUM1] Monitoring Huawei HG8245C router for newly connected devices...")
     while True:
         scan_and_sync()
         time.sleep(8)
