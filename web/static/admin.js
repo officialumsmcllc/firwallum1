@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btn.dataset.tab === 'tenantsTab') fetchTenants();
       if (btn.dataset.tab === 'portsProxiesTab') fetchPortsAndProxies();
       if (btn.dataset.tab === 'globalLogsTab') fetchGlobalLogs();
+      if (btn.dataset.tab === 'cloudflareTab') fetchCloudflareSettings();
     });
   });
 
@@ -500,6 +501,57 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Apply Account Upgrade';
+    }
+  // --- CLOUDFLARE ZERO TRUST INTEGRATION ---
+  window.fetchCloudflareSettings = async function() {
+    try {
+      const res = await fetch('/api/admin/settings/cloudflare');
+      const data = await res.json();
+      const statusEl = document.getElementById('cfTokenStatus');
+      const accountInput = document.getElementById('cfAccountIdInput');
+      if (data.configured) {
+        statusEl.innerHTML = `🟢 Token Active (${data.token_masked})`;
+        statusEl.style.color = '#34d399';
+      } else {
+        statusEl.innerHTML = '⚪ Token not configured (Default Anycast IPs active)';
+        statusEl.style.color = '#94a3b8';
+      }
+      if (data.account_id && accountInput) {
+        accountInput.value = data.account_id;
+      }
+    } catch (e) {
+      console.error('Error fetching CF settings:', e);
+    }
+  };
+
+  window.handleSaveCloudflareSettings = async function(e) {
+    e.preventDefault();
+    const token = document.getElementById('cfApiTokenInput').value.trim();
+    const accountId = document.getElementById('cfAccountIdInput').value.trim();
+    const saveBtn = document.getElementById('saveCfBtn');
+    const notice = document.getElementById('cfSaveNotice');
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    try {
+      const res = await fetch('/api/admin/settings/cloudflare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_token: token, account_id: accountId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save');
+
+      notice.textContent = '✓ Saved successfully!';
+      notice.style.display = 'inline';
+      setTimeout(() => { notice.style.display = 'none'; }, 4000);
+      fetchCloudflareSettings();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Cloudflare Credentials';
     }
   };
 

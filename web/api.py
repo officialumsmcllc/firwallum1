@@ -365,7 +365,19 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
                 dev_type="Router Gateway (DHCP DNS)",
                 config_id=config_id
             )
-            return jsonify({"status": "linked", "ip": client_ip, "config_id": config_id})
+            # Auto-provision Cloudflare Zero Trust Gateway Location in background
+            try:
+                from core.cloudflare_bridge import sync_cloudflare_location
+                cf_info = sync_cloudflare_location(store, client_ip, config_id)
+            except Exception as e:
+                cf_info = {"success": False, "message": str(e)}
+
+            return jsonify({
+                "status": "linked",
+                "ip": client_ip,
+                "config_id": config_id,
+                "cloudflare": cf_info
+            })
 
     @api.route("/config/update-shields", methods=["POST"])
     def update_customer_shields():
@@ -600,5 +612,28 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             })
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+
+    @api.route("/admin/settings/cloudflare", methods=["GET", "POST"])
+    def admin_cloudflare_settings():
+        """Get or save Cloudflare Zero Trust Gateway credentials for SaaS DNS Anycast bridge."""
+        if request.method == "POST":
+            data = request.json or {}
+            token = data.get("api_token", "").strip()
+            account_id = data.get("account_id", "").strip()
+            if token:
+                store.set_setting("cloudflare_api_token", token)
+            if account_id:
+                store.set_setting("cloudflare_account_id", account_id)
+            return jsonify({"status": "saved", "message": "Cloudflare Zero Trust credentials saved successfully!"})
+
+        settings = store.get_settings()
+        token = settings.get("cloudflare_api_token", "")
+        account_id = settings.get("cloudflare_account_id", "")
+        token_masked = f"{token[:4]}...{token[-4:]}" if len(token) > 8 else ("Configured" if token else "Not Configured")
+        return jsonify({
+            "configured": bool(token),
+            "account_id": account_id,
+            "token_masked": token_masked
+        })
 
     return api

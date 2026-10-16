@@ -203,6 +203,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Global Threat Stream
       </button>
+      <button class="tab-btn" data-tab="cloudflareTab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        Cloudflare Anycast Bridge
+      </button>
     </div>
 
     <!-- TAB 1: CUSTOMER TENANTS & SUBSCRIPTIONS -->
@@ -334,6 +338,64 @@
             <!-- Rendered via JS -->
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- TAB 5: CLOUDFLARE ANYCAST BRIDGE -->
+    <section id="cloudflareTab" class="tab-content">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 class="section-title">Cloudflare Zero Trust SaaS Anycast Bridge</h2>
+          <p class="section-desc">Automatically provisions Cloudflare Gateway locations so customer routers route UDP 53 to your Render Cloud DoH Firewall.</p>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px;">Cloudflare API Integration</h3>
+        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;">
+          When configured, each customer's router WAN IP is automatically synchronized into Cloudflare Gateway Locations via API, assigning dedicated Anycast IPv4 destinations (e.g. <code>172.64.36.1</code>, <code>172.64.36.2</code>) directly to their router.
+        </p>
+
+        <form id="cfSettingsForm" onsubmit="handleSaveCloudflareSettings(event)">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+              Cloudflare API Token (Zero Trust / Gateway Edit permissions):
+            </label>
+            <input type="password" id="cfApiTokenInput" class="form-control" placeholder="Enter Cloudflare API Bearer Token" style="width: 100%; max-width: 550px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #38bdf8; font-family: monospace;">
+            <div id="cfTokenStatus" style="font-size: 11px; color: #34d399; margin-top: 5px;"></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+              Cloudflare Account ID (Optional, auto-discovered if left blank):
+            </label>
+            <input type="text" id="cfAccountIdInput" class="form-control" placeholder="Optional: 32-character Hex Account ID" style="width: 100%; max-width: 550px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px; color: #fff; font-family: monospace;">
+          </div>
+
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button type="submit" class="btn btn-primary" id="saveCfBtn">
+              Save Cloudflare Credentials
+            </button>
+            <span id="cfSaveNotice" style="font-size: 12px; color: #34d399; display: none;"></span>
+          </div>
+        </form>
+      </div>
+
+      <div class="admin-card" style="margin-top: 20px;">
+        <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 12px;">Active Gateway Anycast Routing</h3>
+        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">
+          These Anycast IP addresses are provided to subscribers to enter into their router DHCP (Huawei, TP-Link, Tenda, etc.):
+        </p>
+        <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+          <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 14px 20px;">
+            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Primary Anycast IPv4</div>
+            <div style="font-size: 18px; font-family: monospace; font-weight: 700; color: #38bdf8; margin-top: 4px;">172.64.36.1</div>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 14px 20px;">
+            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Secondary Anycast IPv4</div>
+            <div style="font-size: 18px; font-family: monospace; font-weight: 700; color: #38bdf8; margin-top: 4px;">172.64.36.2</div>
+          </div>
+        </div>
       </div>
     </section>
 
