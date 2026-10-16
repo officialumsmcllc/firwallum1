@@ -14,17 +14,17 @@ def test_full_saas_lifecycle():
         assert res.status_code == 200, f"Route {route} failed with {res.status_code}"
         print(f"[OK] Route {route} -> HTTP 200 OK")
 
-    # 2. Test Demo Login
-    print("\n>>> Testing Customer Login...")
-    res = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "demo", "password": "demo123"})
-    assert res.status_code == 200, f"Demo login failed: {res.text}"
-    demo_data = res.json()["user"]
-    assert demo_data["username"] == "demo"
-    assert "token" in demo_data
-    print(f"[OK] Customer Login Successful: {demo_data['username']} (Tier: {demo_data['plan_tier']})")
+    # 2. Test Enterprise Login
+    print("\n>>> Testing Enterprise Customer Login...")
+    res = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "officialum1", "password": "admintelecom"})
+    assert res.status_code == 200, f"officialum1 login failed: {res.text}"
+    ent_data = res.json()["user"]
+    assert ent_data["username"] == "officialum1"
+    assert "token" in ent_data
+    print(f"[OK] Customer Login Successful: {ent_data['username']} (Tier: {ent_data['plan_tier']})")
 
     # 3. Test Invalid Login
-    res = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "demo", "password": "wrongpassword"})
+    res = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "officialum1", "password": "wrongpassword"})
     assert res.status_code == 401, "Bad password should return 401"
     print("[OK] Invalid credentials correctly rejected (401)")
 
