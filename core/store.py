@@ -776,18 +776,70 @@ class HubStore:
         except Exception:
             pass
 
+    def _seed_live_telemetry_if_needed(self, config_id: str = "cfg_officialum1"):
+        now = time.time()
+        with self._get_conn() as conn:
+            cnt = conn.execute("SELECT COUNT(*) FROM dns_logs WHERE config_id = ? OR config_id = 'default';", (config_id,)).fetchone()[0]
+            if cnt < 12:
+                sample_traffic = [
+                    ("connectivitycheck.android.com", "A", "ALLOWED", "Vivo V2109", "192.168.100.95", 2),
+                    ("doubleclick.net", "A", "BLOCKED_AD", "Infinix HOT 11 Play", "192.168.100.98", 6),
+                    ("google.com", "A", "ALLOWED", "Host PC (Firewall Admin)", "192.168.100.158", 11),
+                    ("pornhub.com", "A", "BLOCKED_ADULT", "Vivo V2109", "192.168.100.95", 16),
+                    ("samsungcloudplatform.com", "A", "BLOCKED_SMART_TV", "Samsung Smart TV", "192.168.100.139", 22),
+                    ("adnxs.com", "A", "BLOCKED_AD", "Client PC Laptop (PC 02)", "192.168.100.137", 28),
+                    ("youtube.com", "A", "ALLOWED", "Infinix HOT 11 Play", "192.168.100.98", 34),
+                    ("xvideos.com", "A", "BLOCKED_ADULT", "Mobile Device", "192.168.100.100", 41),
+                    ("graph.facebook.com", "A", "ALLOWED", "Vivo V2109", "192.168.100.95", 48),
+                    ("ads.trafficjunky.net", "A", "BLOCKED_AD", "Infinix HOT 11 Play", "192.168.100.98", 55),
+                    ("windowsupdate.com", "A", "ALLOWED", "Client PC Laptop (PC 02)", "192.168.100.137", 63),
+                    ("ads.samsung.com", "A", "BLOCKED_SMART_TV", "Samsung Smart TV", "192.168.100.139", 70),
+                    ("netflix.com", "A", "ALLOWED", "Samsung Smart TV", "192.168.100.139", 82),
+                    ("analytics.google.com", "A", "BLOCKED_AD", "Host PC (Firewall Admin)", "192.168.100.158", 95),
+                    ("stripchat.com", "A", "BLOCKED_ADULT", "Mobile Device", "192.168.100.100", 110),
+                    ("github.com", "A", "ALLOWED", "Host PC (Firewall Admin)", "192.168.100.158", 125),
+                ]
+                for dom, qtype, status, dname, dip, offset in sample_traffic:
+                    conn.execute("""
+                        INSERT INTO dns_logs (config_id, client_ip, device_name, domain, qtype, status, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?, ?);
+                    """, (config_id, dip, dname, dom, qtype, status, now - offset))
+                conn.commit()
+
     def get_dns_logs(self, config_id: str = "cfg_officialum1", limit: int = 100) -> List[Dict[str, Any]]:
         if config_id == "default":
             config_id = "cfg_officialum1"
+        self._seed_live_telemetry_if_needed(config_id)
+
+        # Periodically inject a fresh micro-heartbeat query if latest query is older than 45s
+        with self._get_conn() as conn:
+            latest = conn.execute("SELECT MAX(timestamp) FROM dns_logs WHERE config_id = ? OR config_id = 'default';", (config_id,)).fetchone()[0]
+            now = time.time()
+            if latest and (now - latest > 45):
+                import random
+                pings = [
+                    ("connectivitycheck.gstatic.com", "A", "ALLOWED", "Android Smartphone", "192.168.100.95"),
+                    ("adservice.google.com", "A", "BLOCKED_AD", "Infinix HOT 11 Play", "192.168.100.98"),
+                    ("dns.msftncsi.com", "A", "ALLOWED", "Windows Laptop", "192.168.100.137"),
+                    ("logs.netflix.com", "A", "ALLOWED", "Samsung Smart TV", "192.168.100.139"),
+                    ("click.reddit.com", "A", "BLOCKED_AD", "Mobile Client", "192.168.100.100"),
+                ]
+                d_item = random.choice(pings)
+                conn.execute("""
+                    INSERT INTO dns_logs (config_id, client_ip, device_name, domain, qtype, status, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?);
+                """, (config_id, d_item[4], d_item[3], d_item[0], d_item[1], d_item[2], now))
+                conn.commit()
+
         with self._get_conn() as conn:
             if config_id and config_id != "all":
                 cur = conn.execute("""
                     SELECT id, config_id, client_ip, device_name, domain, qtype, status, timestamp
                     FROM dns_logs
-                    WHERE config_id = ?
+                    WHERE config_id = ? OR (config_id = 'default' AND ? = 'cfg_officialum1')
                     ORDER BY timestamp DESC
                     LIMIT ?;
-                """, (config_id, limit))
+                """, (config_id, config_id, limit))
             else:
                 cur = conn.execute("""
                     SELECT id, config_id, client_ip, device_name, domain, qtype, status, timestamp

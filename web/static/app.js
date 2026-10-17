@@ -456,6 +456,8 @@
         badgeHtml = `<span class="badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); font-size: 10px;">📺 SMART TV AD</span>`;
       } else if (log.status === 'BLOCKED_PAUSED') {
         badgeHtml = `<span class="badge" style="background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); font-size: 10px;">⏸️ PAUSED</span>`;
+      } else if (log.status === 'BLOCKED_KICKED') {
+        badgeHtml = `<span class="badge" style="background: rgba(239,68,68,0.25); color: #fca5a5; border: 1px solid rgba(239,68,68,0.5); font-weight: 700; font-size: 10px;">⚡ CUT-OFF / KICKED</span>`;
       } else {
         badgeHtml = `<span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-size: 10px;">🟢 ALLOWED</span>`;
       }
