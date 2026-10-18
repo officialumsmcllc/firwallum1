@@ -655,7 +655,7 @@ class HubStore:
         allowed_keys = {
             "name", "owner_name", "owner_email", "owner_phone", "plan_tier", "status",
             "adblock_enabled", "adult_block_enabled", "safesearch_enabled", "smart_tv_shield",
-            "block_tiktok", "block_gaming", "block_gambling", "proxy_tunnel_enabled", "speed_limit_mbps"
+            "block_tiktok", "block_gaming", "block_youtube", "block_roblox", "block_gambling", "proxy_tunnel_enabled", "speed_limit_mbps"
         }
         set_clauses = []
         vals = []
