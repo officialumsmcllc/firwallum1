@@ -323,7 +323,15 @@ class DnsFirewall:
 
     def _auto_discover_device(self, client_ip: str, qname: str, device_name: str, config_id: str, packet_len: int):
         """Zero-Touch Device Discovery from real-time DNS queries (No local PC needed)."""
-        if not config_id or config_id in ("none", ""):
+        if not config_id or config_id in ("none", "", "default"):
+            return
+
+        router_ip = client_ip.split(":")[0] if ":" in client_ip else client_ip
+        if router_ip in ("127.0.0.1", "::1", "localhost"):
+            return
+
+        # Protect against internet scanners: only discover devices if IP is explicitly linked or DoH device tag is provided
+        if not device_name and not self.store.is_ip_linked(router_ip, config_id):
             return
 
         # 1. If explicit device tag passed (via DoH / Private DNS)
@@ -481,6 +489,42 @@ class DnsFirewall:
                 self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_ADULT", device_name=device_name, config_id=config_id)
                 reply = req.reply()
                 reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
+                return reply.pack()
+
+        # 1c. 1-Click App & Game Kill-Switches (TikTok, YouTube, PUBG/FreeFire, Roblox)
+        if cfg.get("block_tiktok", 0) == 1:
+            tiktok_domains = ("tiktok.com", "tiktokcdn.com", "tiktokv.com", "byteoversea.com", "ibytedtos.com", "musical.ly", "snssdk.com")
+            if any(qname == td or qname.endswith("." + td) for td in tiktok_domains):
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_TIKTOK", device_name=device_name, config_id=config_id)
+                reply = req.reply()
+                reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=30))
+                return reply.pack()
+
+        if cfg.get("block_youtube", 0) == 1:
+            yt_domains = ("youtube.com", "googlevideo.com", "ytimg.com", "youtu.be", "youtube-nocookie.com", "yt3.ggpht.com")
+            if any(qname == yd or qname.endswith("." + yd) for yd in yt_domains):
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_YOUTUBE", device_name=device_name, config_id=config_id)
+                reply = req.reply()
+                reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=30))
+                return reply.pack()
+
+        if cfg.get("block_gaming", 0) == 1:
+            gaming_domains = (
+                "pubgmobile.com", "proximabeta.com", "igamecj.com", "krafton.com", "tencentgames.com",
+                "freefiremobile.com", "garena.com", "dff.garena.com", "freefire.com"
+            )
+            if any(qname == gd or qname.endswith("." + gd) for gd in gaming_domains):
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_GAMING", device_name=device_name, config_id=config_id)
+                reply = req.reply()
+                reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=30))
+                return reply.pack()
+
+        if cfg.get("block_roblox", 0) == 1:
+            roblox_domains = ("roblox.com", "rbxcdn.com", "robloxlabs.com")
+            if any(qname == rd or qname.endswith("." + rd) for rd in roblox_domains):
+                self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_ROBLOX", device_name=device_name, config_id=config_id)
+                reply = req.reply()
+                reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=30))
                 return reply.pack()
 
         # 2. IPv6 AAAA Filter: Prevents 20s TCP SYN timeout on non-IPv6 ISP fiber connections (e.g. GitHub)

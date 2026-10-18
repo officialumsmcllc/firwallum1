@@ -229,6 +229,55 @@
       if (data.safesearch_enabled) shieldSafe.classList.add('active');
       else shieldSafe.classList.remove('active');
     }
+
+    // Sync 1-Click App & Gaming Kill Switches
+    const shieldTiktok = document.getElementById('userShieldTiktokBtn');
+    const tiktokText = document.getElementById('tiktokStatusText');
+    if (shieldTiktok) {
+      if (data.block_tiktok) {
+        shieldTiktok.classList.add('active');
+        if (tiktokText) { tiktokText.textContent = '● Hard Kill Active (Blocked)'; tiktokText.style.color = '#ef4444'; }
+      } else {
+        shieldTiktok.classList.remove('active');
+        if (tiktokText) { tiktokText.textContent = '● Hard Kill Inactive (Allowed)'; tiktokText.style.color = '#64748b'; }
+      }
+    }
+
+    const shieldGaming = document.getElementById('userShieldGamingBtn');
+    const gamingText = document.getElementById('gamingStatusText');
+    if (shieldGaming) {
+      if (data.block_gaming) {
+        shieldGaming.classList.add('active');
+        if (gamingText) { gamingText.textContent = '● Hard Kill Active (Blocked)'; gamingText.style.color = '#ef4444'; }
+      } else {
+        shieldGaming.classList.remove('active');
+        if (gamingText) { gamingText.textContent = '● Hard Kill Inactive (Allowed)'; gamingText.style.color = '#64748b'; }
+      }
+    }
+
+    const shieldYt = document.getElementById('userShieldYtBtn');
+    const ytText = document.getElementById('ytStatusText');
+    if (shieldYt) {
+      if (data.block_youtube) {
+        shieldYt.classList.add('active');
+        if (ytText) { ytText.textContent = '● Hard Kill Active (Blocked)'; ytText.style.color = '#ef4444'; }
+      } else {
+        shieldYt.classList.remove('active');
+        if (ytText) { ytText.textContent = '● Hard Kill Inactive (Allowed)'; ytText.style.color = '#64748b'; }
+      }
+    }
+
+    const shieldRoblox = document.getElementById('userShieldRobloxBtn');
+    const robloxText = document.getElementById('robloxStatusText');
+    if (shieldRoblox) {
+      if (data.block_roblox) {
+        shieldRoblox.classList.add('active');
+        if (robloxText) { robloxText.textContent = '● Hard Kill Active (Blocked)'; robloxText.style.color = '#ef4444'; }
+      } else {
+        shieldRoblox.classList.remove('active');
+        if (robloxText) { robloxText.textContent = '● Hard Kill Inactive (Allowed)'; robloxText.style.color = '#64748b'; }
+      }
+    }
   }
 
   // --- REFRESH CONNECTED WI-FI DEVICES & BANDWIDTH ---
@@ -428,6 +477,14 @@
       filtered = activeLogs.filter(l => l.status === 'BLOCKED_AD');
     } else if (filterVal === 'BLOCKED_ADULT') {
       filtered = activeLogs.filter(l => l.status === 'BLOCKED_ADULT');
+    } else if (filterVal === 'BLOCKED_TIKTOK') {
+      filtered = activeLogs.filter(l => l.status === 'BLOCKED_TIKTOK');
+    } else if (filterVal === 'BLOCKED_GAMING') {
+      filtered = activeLogs.filter(l => l.status === 'BLOCKED_GAMING');
+    } else if (filterVal === 'BLOCKED_YOUTUBE') {
+      filtered = activeLogs.filter(l => l.status === 'BLOCKED_YOUTUBE');
+    } else if (filterVal === 'BLOCKED_ROBLOX') {
+      filtered = activeLogs.filter(l => l.status === 'BLOCKED_ROBLOX');
     } else if (filterVal === 'ALLOWED') {
       filtered = activeLogs.filter(l => l.status === 'ALLOWED');
     }
@@ -452,6 +509,14 @@
         badgeHtml = `<span class="badge" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); font-size: 10px;">🚫 AD / TRACKER</span>`;
       } else if (log.status === 'BLOCKED_ADULT') {
         badgeHtml = `<span class="badge" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); font-size: 10px;">🔞 18+ ADULT</span>`;
+      } else if (log.status === 'BLOCKED_TIKTOK') {
+        badgeHtml = `<span class="badge" style="background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid rgba(244,63,94,0.4); font-size: 10px; font-weight: 700;">🎵 TIKTOK KILL</span>`;
+      } else if (log.status === 'BLOCKED_GAMING') {
+        badgeHtml = `<span class="badge" style="background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.4); font-size: 10px; font-weight: 700;">🎮 GAME KILL</span>`;
+      } else if (log.status === 'BLOCKED_YOUTUBE') {
+        badgeHtml = `<span class="badge" style="background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); font-size: 10px; font-weight: 700;">▶️ YOUTUBE KILL</span>`;
+      } else if (log.status === 'BLOCKED_ROBLOX') {
+        badgeHtml = `<span class="badge" style="background: rgba(168,85,247,0.2); color: #a855f7; border: 1px solid rgba(168,85,247,0.4); font-size: 10px; font-weight: 700;">👾 ROBLOX KILL</span>`;
       } else if (log.status === 'BLOCKED_SMART_TV') {
         badgeHtml = `<span class="badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); font-size: 10px;">📺 SMART TV AD</span>`;
       } else if (log.status === 'BLOCKED_PAUSED') {
@@ -690,6 +755,39 @@
     userShieldSafeSearch.addEventListener('click', () => {
       const active = userShieldSafeSearch.classList.contains('active');
       updateShield('safesearch_enabled', active);
+    });
+  }
+
+  // App & Game Kill-Switches Event Listeners
+  const userShieldTiktok = document.getElementById('userShieldTiktokBtn');
+  if (userShieldTiktok) {
+    userShieldTiktok.addEventListener('click', () => {
+      const active = userShieldTiktok.classList.contains('active');
+      updateShield('block_tiktok', active);
+    });
+  }
+
+  const userShieldGaming = document.getElementById('userShieldGamingBtn');
+  if (userShieldGaming) {
+    userShieldGaming.addEventListener('click', () => {
+      const active = userShieldGaming.classList.contains('active');
+      updateShield('block_gaming', active);
+    });
+  }
+
+  const userShieldYt = document.getElementById('userShieldYtBtn');
+  if (userShieldYt) {
+    userShieldYt.addEventListener('click', () => {
+      const active = userShieldYt.classList.contains('active');
+      updateShield('block_youtube', active);
+    });
+  }
+
+  const userShieldRoblox = document.getElementById('userShieldRobloxBtn');
+  if (userShieldRoblox) {
+    userShieldRoblox.addEventListener('click', () => {
+      const active = userShieldRoblox.classList.contains('active');
+      updateShield('block_roblox', active);
     });
   }
 

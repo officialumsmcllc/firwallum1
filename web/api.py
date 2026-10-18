@@ -90,6 +90,10 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             "adult_block_enabled": cfg.get("adult_block_enabled", 1) == 1,
             "smart_tv_shield": cfg.get("smart_tv_shield", 1) == 1,
             "safesearch_enabled": cfg.get("safesearch_enabled", 1) == 1,
+            "block_tiktok": cfg.get("block_tiktok", 0) == 1,
+            "block_gaming": cfg.get("block_gaming", 0) == 1,
+            "block_youtube": cfg.get("block_youtube", 0) == 1,
+            "block_roblox": cfg.get("block_roblox", 0) == 1,
             "blocked_domains_count": len(dns_firewall.blocked_domains) if dns_firewall else 0,
             "adult_domains_count": len(dns_firewall.adult_blocked_domains) if dns_firewall else 0
         })
@@ -473,7 +477,7 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         if config_id == "default":
             config_id = "cfg_officialum1"
         toggles = {}
-        for k in ("adblock_enabled", "adult_block_enabled", "safesearch_enabled", "smart_tv_shield", "block_tiktok", "block_gaming"):
+        for k in ("adblock_enabled", "adult_block_enabled", "safesearch_enabled", "smart_tv_shield", "block_tiktok", "block_gaming", "block_youtube", "block_roblox"):
             if k in data:
                 toggles[k] = int(data[k])
         store.update_tenant_features(config_id, toggles)

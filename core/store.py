@@ -222,7 +222,9 @@ class HubStore:
                 ("owner_name", "TEXT", "''"), ("owner_email", "TEXT", "''"), ("owner_phone", "TEXT", "''"),
                 ("plan_tier", "TEXT", "'pro'"), ("status", "TEXT", "'active'"),
                 ("safesearch_enabled", "INTEGER", "1"), ("smart_tv_shield", "INTEGER", "1"),
-                ("block_tiktok", "INTEGER", "0"), ("block_gaming", "INTEGER", "0"), ("block_gambling", "INTEGER", "1"),
+                ("block_tiktok", "INTEGER", "0"), ("block_gaming", "INTEGER", "0"),
+                ("block_youtube", "INTEGER", "0"), ("block_roblox", "INTEGER", "0"),
+                ("block_gambling", "INTEGER", "1"),
                 ("proxy_tunnel_enabled", "INTEGER", "0"), ("speed_limit_mbps", "REAL", "0.0"),
                 ("expires_at", "REAL", str(time.time() + 30 * 86400))
             ]:
@@ -1011,10 +1013,7 @@ class TrafficTracker:
             last_active = self._last_seen.get(key, 0) or (self._last_seen.get(key.split("#")[0], 0) if "#" in key else 0)
             is_active_recently = (now - last_active < 45.0) if last_active > 0 else False
 
-            # If active recently, provide responsive dynamic live speed indicator
-            if rate == 0.0 and is_active_recently:
-                import random
-                rate = round(random.uniform(22.4, 88.6), 1)
+
 
             mb_val = round(total / (1024.0 * 1024.0), 2)
             gb_val = round(total / (1024.0 * 1024.0 * 1024.0), 3)
