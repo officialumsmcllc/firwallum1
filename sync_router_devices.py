@@ -10,7 +10,7 @@ import requests
 
 import os
 
-CLOUD_SYNC_URL = os.environ.get("CLOUD_SYNC_URL", "http://142.93.19.40:8088/api/wifi-devices/sync")
+CLOUD_SYNC_URL = os.environ.get("CLOUD_SYNC_URL", "https://hub.officialum1.com/api/wifi-devices/sync")
 
 KNOWN_MAP = {
     "48:4D:7E:E9:25:DD": {"name": "Host PC (Firewall Admin)", "type": "Core Server Laptop (LAN)"},
