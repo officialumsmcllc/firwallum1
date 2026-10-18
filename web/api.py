@@ -412,7 +412,9 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         """1-Click Link or Unlink of Public Router WAN IP to Configuration."""
         data = request.json or {}
         client_ip = data.get("ip") or request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
-        config_id = data.get("config_id", "default")
+        config_id = data.get("config_id") or request.args.get("config") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
         action = data.get("action", "link")
 
         if action == "unlink":
@@ -467,7 +469,9 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
     def update_customer_shields():
         """Allows customer to toggle personal shields on their dashboard."""
         data = request.json or {}
-        config_id = data.get("config_id", "default")
+        config_id = data.get("config_id") or request.args.get("config") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
         toggles = {}
         for k in ("adblock_enabled", "adult_block_enabled", "safesearch_enabled", "smart_tv_shield", "block_tiktok", "block_gaming"):
             if k in data:

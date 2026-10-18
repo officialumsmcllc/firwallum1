@@ -514,9 +514,22 @@
           mainText.innerHTML = '🟢 Shield Active: Protected by OFFICIALUM1.';
           subText.textContent = `Network traffic on configuration '${currentConfigId}' is actively shielded.`;
         } else {
-          banner.className = 'nextdns-status-banner inactive';
-          mainText.innerHTML = '🔴 This network is not using this configuration.';
-          subText.textContent = `Router WAN IP is ${res.client_ip}. Click 'Link IP' or configure your router DHCP.`;
+          // 100% Fully Automated: Auto-link router WAN IP in background on login
+          if (res.client_ip && res.client_ip !== '127.0.0.1' && !isGuest) {
+            apiPost('config/link-ip', { ip: res.client_ip, action: 'link' }).then(linkRes => {
+              if (linkRes && linkRes.status === 'linked') {
+                isCurrentIpLinked = true;
+                updateLinkIpButton(true);
+                banner.className = 'nextdns-status-banner active';
+                mainText.innerHTML = '🟢 All good! This network is automatically linked & shielded.';
+                subText.textContent = `Router WAN IP ${res.client_ip} has been auto-linked to your account. All devices protected.`;
+              }
+            });
+          } else {
+            banner.className = 'nextdns-status-banner inactive';
+            mainText.innerHTML = '🔴 This network is not using this configuration.';
+            subText.textContent = `Router WAN IP is ${res.client_ip}. Click 'Link IP' or configure your router DHCP.`;
+          }
         }
       }
     } catch (e) {
