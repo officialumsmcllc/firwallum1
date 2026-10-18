@@ -340,13 +340,13 @@
         <div class="setup-endpoints-grid">
           <div class="endpoint-chip">
             <span class="chip-label">PRIMARY IPv4 DNS (ROUTER DHCP)</span>
-            <span class="chip-val">172.64.36.1</span>
-            <button class="chip-copy-btn" data-copy="172.64.36.1" title="Copy">📋</button>
+            <span class="chip-val">142.93.19.40</span>
+            <button class="chip-copy-btn" data-copy="142.93.19.40" title="Copy">📋</button>
           </div>
           <div class="endpoint-chip">
-            <span class="chip-label">SECONDARY IPv4 DNS (ROUTER DHCP)</span>
-            <span class="chip-val">172.64.36.2</span>
-            <button class="chip-copy-btn" data-copy="172.64.36.2" title="Copy">📋</button>
+            <span class="chip-label">SECONDARY IPv4 DNS (FALLBACK)</span>
+            <span class="chip-val">1.1.1.1</span>
+            <button class="chip-copy-btn" data-copy="1.1.1.1" title="Copy">📋</button>
           </div>
           <div class="endpoint-chip">
             <span class="chip-label">DNS-OVER-HTTPS (DoH)</span>
@@ -401,8 +401,8 @@
               <div class="setup-step-text">
                 Enter the OFFICIALUM1 Anycast DNS Server IP addresses:
                 <div style="display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap;">
-                  <span>Primary DNS: <code>172.64.36.1</code></span>
-                  <span>Secondary DNS: <code>172.64.36.2</code></span>
+                  <span>Primary DNS: <code>142.93.19.40</code></span>
+                  <span>Secondary DNS: <code>1.1.1.1</code></span>
                 </div>
               </div>
             </div>
@@ -520,7 +520,7 @@
             <div class="setup-step-item">
               <span class="setup-step-badge">3</span>
               <div class="setup-step-text">
-                Set Preferred DNS to <code>172.64.36.1</code> and DNS encryption to <strong>Encrypted only (DNS over HTTPS)</strong> with template: <code>https://hub.officialum1.com/dns-query</code>
+                Set Preferred DNS to <code>142.93.19.40</code> and Alternate DNS to <code>1.1.1.1</code>.
               </div>
             </div>
           </div>
@@ -586,7 +586,7 @@
             <div class="setup-step-item">
               <span class="setup-step-badge">3</span>
               <div class="setup-step-text">
-                Set <strong>Primary DNS</strong> to <code>172.64.36.1</code> and <strong>Secondary DNS</strong> to <code>172.64.36.2</code>. Save and restart TV.
+                Set <strong>Primary DNS</strong> to <code>142.93.19.40</code> and <strong>Secondary DNS</strong> to <code>1.1.1.1</code>. Save and restart TV.
               </div>
             </div>
             <div class="setup-step-item">
@@ -849,7 +849,7 @@
           <div class="step-body">
             <h4>Method 3: Home Router (Pura Ghar Ek Sath)</h4>
             <p>Huawei HG8245C Router (<code>192.168.100.1</code>) ➔ <code>LAN</code> ➔ <code>DHCP Server Configuration</code>:</p>
-            <p><strong>Primary DNS:</strong> <code class="code-badge">172.64.36.1</code> &nbsp; <strong>Secondary DNS:</strong> <code class="code-badge">172.64.36.2</code></p>
+            <p><strong>Primary DNS:</strong> <code class="code-badge">142.93.19.40</code> &nbsp; <strong>Secondary DNS:</strong> <code class="code-badge">1.1.1.1</code></p>
           </div>
         </div>
       </div>

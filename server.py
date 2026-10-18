@@ -141,10 +141,20 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
 
         client_key = f"{raw_ip} - {dev_tag}" if dev_tag else raw_ip
 
-        # Track client in firewall
+        # Track client in firewall and auto-register under connected devices
         if client_key and hasattr(dns_firewall, "live_clients"):
             with dns_firewall._client_lock:
                 dns_firewall.live_clients[client_key] = time.time()
+        if dev_tag:
+            try:
+                store.upsert_wifi_device(
+                    ip=f"{raw_ip}#{dev_tag}",
+                    name=dev_tag,
+                    dev_type="DoH / Private DNS Client",
+                    config_id=target_config or "cfg_officialum1"
+                )
+            except Exception:
+                pass
 
         is_blocked = (
             store.is_client_blocked(raw_ip) or 

@@ -58,7 +58,7 @@
     window.location.href = '/login';
   };
 
-  let currentHubIp = '172.64.36.1';
+  let currentHubIp = '142.93.19.40';
   const startTime = Date.now();
   let knownDeviceIps = new Set();
   let isInitialDeviceLoad = true;
@@ -143,7 +143,7 @@
     if (!data) return;
 
     currentTenantData = data;
-    currentHubIp = data.hub_ip || '172.64.36.1';
+    currentHubIp = data.hub_ip || '142.93.19.40';
 
     // 1. Subscription Expiry Check (Feature 3 Paywall)
     if (data.status === 'suspended' || data.status === 'expired') {
@@ -249,7 +249,7 @@
             <div style="font-size:32px; margin-bottom:12px;">📡</div>
             Scanning network... No devices connected yet.<br>
             <span style="font-size:12px; color:var(--text-sub); margin-top:6px; display:inline-block;">
-              Configure your Router DNS to <code>172.64.36.1</code> or connect your phone to appear here instantly.
+              Configure your Router DNS to <code>142.93.19.40</code> or connect your phone to appear here instantly.
             </span>
           </td>
         </tr>

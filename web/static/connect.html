@@ -155,6 +155,15 @@
       <span id="badgeText">Connecting Device...</span>
     </div>
 
+    <div class="box" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08);">
+      <div class="box-title" style="color: #34d399;">🏠 Whole Home Wi-Fi Router (Huawei / TP-Link)</div>
+      <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">
+        Router DHCP Settings ➔ Set Primary DNS to shield entire house:
+      </p>
+      <code id="routerDnsIp" style="color: #38bdf8; font-weight: 700; font-size: 14px;">142.93.19.40</code>
+      <button class="btn" id="copyRouterBtn" style="margin-top: 8px; background: #059669;">📋 Copy Router DNS IP</button>
+    </div>
+
     <div class="box">
       <div class="box-title">🍏 Apple iOS &amp; macOS (1-Click Profile)</div>
       <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 10px;">
@@ -170,7 +179,7 @@
       <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">
         Settings ➔ Connections ➔ Private DNS ➔ Provider hostname:
       </p>
-      <code style="color: #34d399; font-weight: 600;">l7zasdrw78.cloudflare-gateway.com</code>
+      <code id="privateDnsHost" style="color: #34d399; font-weight: 600;">hub.officialum1.com</code>
       <button class="btn" id="copyPrivateDnsBtn" style="margin-top: 8px;">📋 Copy Hostname</button>
     </div>
 
@@ -211,6 +220,18 @@
     }
     registerDevice();
 
+    // Copy Button for Router DNS IP
+    const copyRouterBtn = document.getElementById('copyRouterBtn');
+    if (copyRouterBtn) {
+      copyRouterBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText('142.93.19.40');
+        copyRouterBtn.textContent = '✅ Router IP Copied!';
+        setTimeout(() => {
+          copyRouterBtn.textContent = '📋 Copy Router DNS IP';
+        }, 2500);
+      });
+    }
+
     // Copy Button for Custom DoH
     document.getElementById('copyBtn').addEventListener('click', () => {
       navigator.clipboard.writeText(fullDoH);
@@ -224,7 +245,8 @@
     const copyPrivateBtn = document.getElementById('copyPrivateDnsBtn');
     if (copyPrivateBtn) {
       copyPrivateBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText('l7zasdrw78.cloudflare-gateway.com');
+        const hostVal = document.getElementById('privateDnsHost').textContent || 'hub.officialum1.com';
+        navigator.clipboard.writeText(hostVal);
         copyPrivateBtn.textContent = '✅ Hostname Copied!';
         setTimeout(() => {
           copyPrivateBtn.textContent = '📋 Copy Hostname';

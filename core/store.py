@@ -254,24 +254,28 @@ class HubStore:
                 ]
                 conn.executemany("INSERT INTO ports (port, device_name) VALUES (?, ?);", default_ports)
             # Seed persistent Huawei Router Devices with real router devices
-            cur = conn.execute("SELECT COUNT(*) FROM wifi_devices;")
-            if cur.fetchone()[0] == 0:
-                default_router_devices = [
-                    ("192.168.100.95", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, 385000000, 32.0, time.time()),
-                    ("192.168.100.137", "cfg_officialum1", "38:BA:F8:84:F3:05", "Client PC Laptop (PC 02)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, 1420000000, 114.2, time.time()),
-                    ("192.168.100.61", "cfg_officialum1", "08:CC:81:18:C9:98", "Ethernet Device (Port 1)", "LAN Client", "SHIELDED", 8106, 890000000, 4.0, time.time()),
-                    ("192.168.100.139", "cfg_officialum1", "D8:FC:92:58:8B:12", "Wireless Device (lwp0)", "Wi-Fi Client", "SHIELDED", 8105, 540000000, 24.5, time.time()),
-                    ("192.168.100.98", "cfg_officialum1", "1E:91:0C:0E:DB:42", "Mobile Device", "Smartphone (Wi-Fi)", "SHIELDED", 8107, 210000000, 18.5, time.time()),
-                ]
-                conn.executemany("""
-                    INSERT OR IGNORE INTO wifi_devices (ip, config_id, mac, name, type, status, assigned_port, bytes_used, last_speed_kbps, last_seen)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """, default_router_devices)
-            else:
-                # Clean up legacy fake dummy devices
-                fake_dummy_ips = ("192.168.100.15", "192.168.100.18", "192.168.100.22", "192.168.100.31", "192.168.100.2", "192.168.100.45", "192.168.100.67")
-                placeholders = ",".join("?" for _ in fake_dummy_ips)
-                conn.execute(f"DELETE FROM wifi_devices WHERE ip IN ({placeholders});", fake_dummy_ips)
+            real_router_devices = [
+                ("192.168.100.158", "cfg_officialum1", "48:4D:7E:E9:25:DD", "Host PC (Admin)", "PC (Firewall Admin)", "SHIELDED", 8101, 0, 0.0, time.time()),
+                ("192.168.100.95", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, 0, 0.0, time.time()),
+                ("192.168.100.98", "cfg_officialum1", "1E:91:0C:0E:DB:42", "Infinix HOT 11 Play", "Android Smartphone (Wi-Fi)", "SHIELDED", 8107, 0, 0.0, time.time()),
+                ("192.168.100.100", "cfg_officialum1", "5E:E4:9F:53:4E:49", "Mobile Device (Wi-Fi)", "Smartphone (Wi-Fi)", "SHIELDED", 8108, 0, 0.0, time.time()),
+                ("192.168.100.137", "cfg_officialum1", "38:BA:F8:84:F3:05", "Client PC Laptop (PC 02)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, 0, 0.0, time.time()),
+                ("192.168.100.61", "cfg_officialum1", "08:CC:81:18:C9:98", "Ethernet Device (Port 1)", "LAN Client", "SHIELDED", 8106, 0, 0.0, time.time()),
+            ]
+            for dev in real_router_devices:
+                conn.execute("""
+                    INSERT INTO wifi_devices (ip, config_id, mac, name, type, status, assigned_port, bytes_used, last_speed_kbps, last_seen)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(ip) DO UPDATE SET
+                    mac = CASE WHEN excluded.mac != '' THEN excluded.mac ELSE wifi_devices.mac END,
+                    name = CASE WHEN wifi_devices.name = '' OR wifi_devices.name LIKE 'Device %' THEN excluded.name ELSE wifi_devices.name END,
+                    type = excluded.type;
+                """, dev)
+
+            # Clean up any legacy dummy IPs
+            fake_dummy_ips = ("192.168.100.15", "192.168.100.18", "192.168.100.22", "192.168.100.31", "192.168.100.2", "192.168.100.45", "192.168.100.67")
+            placeholders = ",".join("?" for _ in fake_dummy_ips)
+            conn.execute(f"DELETE FROM wifi_devices WHERE ip IN ({placeholders});", fake_dummy_ips)
 
             # Seed default settings
             default_settings = {
@@ -776,60 +780,9 @@ class HubStore:
         except Exception:
             pass
 
-    def _seed_live_telemetry_if_needed(self, config_id: str = "cfg_officialum1"):
-        now = time.time()
-        with self._get_conn() as conn:
-            cnt = conn.execute("SELECT COUNT(*) FROM dns_logs WHERE config_id = ? OR config_id = 'default';", (config_id,)).fetchone()[0]
-            if cnt < 12:
-                sample_traffic = [
-                    ("connectivitycheck.android.com", "A", "ALLOWED", "Vivo V2109", "192.168.100.95", 2),
-                    ("doubleclick.net", "A", "BLOCKED_AD", "Infinix HOT 11 Play", "192.168.100.98", 6),
-                    ("google.com", "A", "ALLOWED", "Host PC (Firewall Admin)", "192.168.100.158", 11),
-                    ("pornhub.com", "A", "BLOCKED_ADULT", "Vivo V2109", "192.168.100.95", 16),
-                    ("samsungcloudplatform.com", "A", "BLOCKED_SMART_TV", "Samsung Smart TV", "192.168.100.139", 22),
-                    ("adnxs.com", "A", "BLOCKED_AD", "Client PC Laptop (PC 02)", "192.168.100.137", 28),
-                    ("youtube.com", "A", "ALLOWED", "Infinix HOT 11 Play", "192.168.100.98", 34),
-                    ("xvideos.com", "A", "BLOCKED_ADULT", "Mobile Device", "192.168.100.100", 41),
-                    ("graph.facebook.com", "A", "ALLOWED", "Vivo V2109", "192.168.100.95", 48),
-                    ("ads.trafficjunky.net", "A", "BLOCKED_AD", "Infinix HOT 11 Play", "192.168.100.98", 55),
-                    ("windowsupdate.com", "A", "ALLOWED", "Client PC Laptop (PC 02)", "192.168.100.137", 63),
-                    ("ads.samsung.com", "A", "BLOCKED_SMART_TV", "Samsung Smart TV", "192.168.100.139", 70),
-                    ("netflix.com", "A", "ALLOWED", "Samsung Smart TV", "192.168.100.139", 82),
-                    ("analytics.google.com", "A", "BLOCKED_AD", "Host PC (Firewall Admin)", "192.168.100.158", 95),
-                    ("stripchat.com", "A", "BLOCKED_ADULT", "Mobile Device", "192.168.100.100", 110),
-                    ("github.com", "A", "ALLOWED", "Host PC (Firewall Admin)", "192.168.100.158", 125),
-                ]
-                for dom, qtype, status, dname, dip, offset in sample_traffic:
-                    conn.execute("""
-                        INSERT INTO dns_logs (config_id, client_ip, device_name, domain, qtype, status, timestamp)
-                        VALUES (?, ?, ?, ?, ?, ?, ?);
-                    """, (config_id, dip, dname, dom, qtype, status, now - offset))
-                conn.commit()
-
     def get_dns_logs(self, config_id: str = "cfg_officialum1", limit: int = 100) -> List[Dict[str, Any]]:
         if config_id == "default":
             config_id = "cfg_officialum1"
-        self._seed_live_telemetry_if_needed(config_id)
-
-        # Periodically inject a fresh micro-heartbeat query if latest query is older than 45s
-        with self._get_conn() as conn:
-            latest = conn.execute("SELECT MAX(timestamp) FROM dns_logs WHERE config_id = ? OR config_id = 'default';", (config_id,)).fetchone()[0]
-            now = time.time()
-            if latest and (now - latest > 45):
-                import random
-                pings = [
-                    ("connectivitycheck.gstatic.com", "A", "ALLOWED", "Android Smartphone", "192.168.100.95"),
-                    ("adservice.google.com", "A", "BLOCKED_AD", "Infinix HOT 11 Play", "192.168.100.98"),
-                    ("dns.msftncsi.com", "A", "ALLOWED", "Windows Laptop", "192.168.100.137"),
-                    ("logs.netflix.com", "A", "ALLOWED", "Samsung Smart TV", "192.168.100.139"),
-                    ("click.reddit.com", "A", "BLOCKED_AD", "Mobile Client", "192.168.100.100"),
-                ]
-                d_item = random.choice(pings)
-                conn.execute("""
-                    INSERT INTO dns_logs (config_id, client_ip, device_name, domain, qtype, status, timestamp)
-                    VALUES (?, ?, ?, ?, ?, ?, ?);
-                """, (config_id, d_item[4], d_item[3], d_item[0], d_item[1], d_item[2], now))
-                conn.commit()
 
         with self._get_conn() as conn:
             if config_id and config_id != "all":
