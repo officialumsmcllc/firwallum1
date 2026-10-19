@@ -344,8 +344,16 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         ip = data.get("ip")
         if not ip:
             return jsonify({"error": "Missing IP"}), 400
+        stored_devs = store.get_wifi_devices()
+        dev_name = ""
+        for d in stored_devs:
+            if d.get("ip") == ip or d.get("display_ip") == ip:
+                dev_name = d.get("name", "")
+                break
         store.unblock_client(ip)
-        return jsonify({"status": "unblocked", "ip": ip})
+        if dev_name:
+            store.unblock_client(dev_name)
+        return jsonify({"status": "unblocked", "ip": ip, "name": dev_name})
 
     @api.route("/ports/limit", methods=["POST"])
     def set_port_limit():
@@ -518,8 +526,99 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         config_id = request.args.get("config") or request.args.get("id") or "cfg_officialum1"
         if config_id == "default":
             config_id = "cfg_officialum1"
-        store.clear_dns_logs(config_id=config_id)
-        return jsonify({"status": "cleared"})
+    # ========== ZERO-INSTALL NATIVE DEVICE PROFILES API ==========
+    @api.route("/devices/apple-profile", methods=["GET"])
+    def get_apple_profile():
+        config_id = request.args.get("config") or "cfg_officialum1"
+        dev_name = request.args.get("name") or request.args.get("device") or "Child Device"
+        from web.mobile_profiles import generate_apple_mobileconfig
+        from flask import Response
+        xml = generate_apple_mobileconfig(config_id=config_id, device_name=dev_name, host=request.host)
+        safe_filename = f"OfficialUM1-{dev_name.replace(' ', '-')}.mobileconfig"
+        return Response(
+            xml,
+            mimetype="application/x-apple-aspen-config",
+            headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'}
+        )
+
+    @api.route("/devices/pairing-info", methods=["GET"])
+    def get_pairing_info():
+        config_id = request.args.get("config") or "cfg_officialum1"
+        dev_name = request.args.get("name") or "My Mobile"
+        from web.mobile_profiles import get_device_pairing_info
+        info = get_device_pairing_info(config_id=config_id, device_name=dev_name, host=request.host)
+        return jsonify(info)
+
+    # ========== CUSTOM RULES (WHITELIST / BLACKLIST) API ==========
+    @api.route("/custom-rules", methods=["GET"])
+    def get_custom_rules_api():
+        config_id = request.args.get("config") or request.args.get("config_id") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
+        rules = store.get_custom_rules(config_id=config_id)
+        return jsonify({"rules": rules, "count": len(rules)})
+
+    @api.route("/custom-rules/add", methods=["POST"])
+    def add_custom_rule_api():
+        data = request.json or {}
+        config_id = data.get("config_id") or data.get("config") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
+        domain = data.get("domain", "").strip()
+        action = data.get("action", "BLOCK").upper()
+        if not domain:
+            return jsonify({"error": "Missing domain"}), 400
+        rule = store.add_custom_rule(config_id=config_id, domain=domain, action=action)
+        return jsonify({"status": "added", "rule": rule})
+
+    @api.route("/custom-rules/delete", methods=["POST", "DELETE"])
+    @api.route("/custom-rules/remove", methods=["POST", "DELETE"])
+    def delete_custom_rule_api():
+        data = request.json or {}
+        config_id = data.get("config_id") or data.get("config") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
+        rule_id = data.get("id") or data.get("rule_id")
+        if not rule_id:
+            return jsonify({"error": "Missing rule id"}), 400
+        store.remove_custom_rule(rule_id=int(rule_id), config_id=config_id)
+        return jsonify({"status": "deleted", "id": rule_id})
+
+    # ========== BEDTIME & CURFEW SCHEDULER API ==========
+    @api.route("/bedtime/schedules", methods=["GET"])
+    def get_bedtime_schedules_api():
+        config_id = request.args.get("config") or request.args.get("config_id") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
+        dev = request.args.get("device")
+        schedules = store.get_bedtime_schedules(config_id=config_id, device_identifier=dev)
+        return jsonify({"schedules": schedules, "count": len(schedules)})
+
+    @api.route("/bedtime/add", methods=["POST"])
+    def add_bedtime_schedule_api():
+        data = request.json or {}
+        config_id = data.get("config_id") or data.get("config") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
+        dev = (data.get("device_identifier") or data.get("device") or data.get("client") or "all").strip()
+        start = (data.get("start_time") or "22:00").strip()
+        end = (data.get("end_time") or "06:00").strip()
+        days = (data.get("days") or "0,1,2,3,4,5,6").strip()
+        sch = store.add_bedtime_schedule(config_id=config_id, device_identifier=dev, start_time=start, end_time=end, days=days)
+        return jsonify({"status": "added", "schedule": sch})
+
+    @api.route("/bedtime/delete", methods=["POST", "DELETE"])
+    @api.route("/bedtime/remove", methods=["POST", "DELETE"])
+    def delete_bedtime_schedule_api():
+        data = request.json or {}
+        config_id = data.get("config_id") or data.get("config") or "cfg_officialum1"
+        if config_id == "default":
+            config_id = "cfg_officialum1"
+        sch_id = data.get("id") or data.get("schedule_id")
+        if not sch_id:
+            return jsonify({"error": "Missing schedule id"}), 400
+        store.remove_bedtime_schedule(schedule_id=int(sch_id), config_id=config_id)
+        return jsonify({"status": "deleted", "id": sch_id})
 
     # ========== ADMIN COMMAND CENTER API SUITE (/api/admin/*) ==========
 

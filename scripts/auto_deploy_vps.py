@@ -74,8 +74,8 @@ def main():
 
     # 4. Check systemctl status
     print("\n[*] Checking service status...")
-    _, status_out, _ = ssh.exec_command("systemctl status firwallum1 --no-pager")
-    print(status_out.read().decode("utf-8", "ignore"))
+    out_text = status_out.read().decode("utf-8", "ignore")
+    print(out_text.encode("ascii", "replace").decode("ascii"))
 
     ssh.close()
     print("\n" + "=" * 65)

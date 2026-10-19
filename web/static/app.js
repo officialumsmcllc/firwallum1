@@ -650,6 +650,7 @@
       if (target === 'wifiTab') refreshWifiDevices();
       if (target === 'logsTab') refreshDnsLogs();
       if (target === 'setupTab') detectDnsStatus();
+      if (target === 'rulesTab') refreshCustomRules();
     });
   });
 
@@ -846,11 +847,259 @@
     });
   }
 
+  // --- WHOLE HOME NETWORK MASTER SWITCH ---
+  let isWholeHomePaused = false;
+  let isWholeHomeKilled = false;
+  const pauseWholeHomeBtn = document.getElementById('pauseWholeHomeBtn');
+  const cutoffWholeHomeBtn = document.getElementById('cutoffWholeHomeBtn');
+
+  if (pauseWholeHomeBtn) {
+    pauseWholeHomeBtn.addEventListener('click', async () => {
+      isWholeHomePaused = !isWholeHomePaused;
+      const targetIp = currentDetectedIp || '103.72.2.182';
+      await apiPost('wifi-devices/pause', { ip: targetIp, paused: isWholeHomePaused });
+      await apiPost('wifi-devices/pause', { ip: 'ALL', paused: isWholeHomePaused });
+      if (isWholeHomePaused) {
+        pauseWholeHomeBtn.innerHTML = '▶️ Resume Whole Home';
+        pauseWholeHomeBtn.style.color = '#34d399';
+        showToast('⏸️ Internet paused across all devices in whole house!');
+      } else {
+        pauseWholeHomeBtn.innerHTML = '⏸️ Pause Whole Home';
+        pauseWholeHomeBtn.style.color = '#fbbf24';
+        showToast('▶️ Internet restored across whole house!');
+      }
+      refreshWifiDevices();
+    });
+  }
+
+  if (cutoffWholeHomeBtn) {
+    cutoffWholeHomeBtn.addEventListener('click', async () => {
+      const targetIp = currentDetectedIp || '103.72.2.182';
+      if (!isWholeHomeKilled) {
+        if (confirm('⚡ Hard cut-off internet for WHOLE HOME? Zero web pages or apps will resolve on any phone, laptop, or TV.')) {
+          isWholeHomeKilled = true;
+          await apiPost('wifi-devices/force-kill', { ip: targetIp });
+          await apiPost('wifi-devices/force-kill', { ip: 'ALL' });
+          cutoffWholeHomeBtn.innerHTML = '🟢 Restore Whole Home';
+          cutoffWholeHomeBtn.style.background = 'rgba(16, 185, 129, 0.25)';
+          cutoffWholeHomeBtn.style.borderColor = '#10b981';
+          cutoffWholeHomeBtn.style.color = '#34d399';
+          showToast('⚡ WHOLE HOME INTERNET HARD CUT-OFF ACTIVATED!');
+          refreshWifiDevices();
+        }
+      } else {
+        isWholeHomeKilled = false;
+        await apiPost('wifi-devices/unblock', { ip: targetIp });
+        await apiPost('wifi-devices/unblock', { ip: 'ALL' });
+        cutoffWholeHomeBtn.innerHTML = '⚡ Kill Whole Home Net';
+        cutoffWholeHomeBtn.style.background = 'rgba(239, 68, 68, 0.25)';
+        cutoffWholeHomeBtn.style.borderColor = '#ef4444';
+        cutoffWholeHomeBtn.style.color = '#fca5a5';
+        showToast('🟢 Whole Home internet fully restored!');
+        refreshWifiDevices();
+      }
+    });
+  }
+
+  // --- CUSTOM RULES & WHITELIST ---
+  async function refreshCustomRules() {
+    const tbody = document.getElementById('customRulesTableBody');
+    if (!tbody) return;
+    const res = await apiGet(`custom-rules?config_id=${encodeURIComponent(currentConfigId)}`);
+    if (!res || !res.rules || res.rules.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-sub); padding: 30px;">
+            No custom rules created yet.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    tbody.innerHTML = res.rules.map(r => {
+      const isBlock = (r.action === 'BLOCK');
+      const actionBadge = isBlock
+        ? `<span class="badge" style="background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.4); font-size: 11px;">🚫 BLOCK</span>`
+        : `<span class="badge" style="background: rgba(16,185,129,0.18); color: #34d399; border: 1px solid rgba(16,185,129,0.4); font-size: 11px;">🟢 ALLOW</span>`;
+      return `
+        <tr>
+          <td><strong style="font-family: var(--font-mono); color: #38bdf8; font-size: 12.5px;">${r.domain}</strong></td>
+          <td>${actionBadge}</td>
+          <td><code class="code-badge" style="font-size: 11px;">${r.client_scope || 'ALL'}</code></td>
+          <td style="color: #cbd5e1; font-size: 12px;">${r.comment || '--'}</td>
+          <td style="color: #94a3b8; font-size: 11px;">${r.created_at || '--'}</td>
+          <td style="text-align: right;">
+            <button class="btn btn-secondary btn-sm delete-custom-rule-btn" data-id="${r.id}" style="padding: 3px 9px; font-size: 11px; color: #fca5a5; border-color: rgba(239,68,68,0.3);">
+              🗑️ Delete
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    document.querySelectorAll('.delete-custom-rule-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const ruleId = e.currentTarget.getAttribute('data-id');
+        await apiPost('custom-rules/remove', { rule_id: ruleId });
+        showToast('Rule removed successfully! 🗑️');
+        refreshCustomRules();
+      });
+    });
+  }
+
+  const addCustomRuleForm = document.getElementById('addCustomRuleForm');
+  if (addCustomRuleForm) {
+    addCustomRuleForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const domain = document.getElementById('customRuleDomainInput').value.trim();
+      const action = document.getElementById('customRuleActionSelect').value;
+      const client = document.getElementById('customRuleClientInput').value.trim() || 'ALL';
+      const comment = document.getElementById('customRuleCommentInput').value.trim();
+      if (!domain) return;
+      const res = await apiPost('custom-rules/add', { domain, action, client, comment });
+      if (res && res.status === 'added') {
+        showToast(`Rule added: ${action} ${domain} 🎉`);
+        document.getElementById('customRuleDomainInput').value = '';
+        document.getElementById('customRuleCommentInput').value = '';
+        refreshCustomRules();
+      }
+    });
+  }
+
+  // --- ZERO-INSTALL DEVICE PAIRING MODAL ---
+  const pairDeviceModal = document.getElementById('pairDeviceModal');
+  const openPairDeviceBtn = document.getElementById('openPairDeviceBtn');
+  const closePairDeviceModalBtn = document.getElementById('closePairDeviceModalBtn');
+  const closePairDeviceDoneBtn = document.getElementById('closePairDeviceDoneBtn');
+  const pairDeviceNameInput = document.getElementById('pairDeviceNameInput');
+  const downloadAppleProfileBtn = document.getElementById('downloadAppleProfileBtn');
+  const copyAppleProfileLinkBtn = document.getElementById('copyAppleProfileLinkBtn');
+  const copyAndroidHostBtn = document.getElementById('copyAndroidHostBtn');
+  const copyPairingDohBtn = document.getElementById('copyPairingDohBtn');
+  const browserPairingDoh = document.getElementById('browserPairingDoh');
+
+  function updatePairingUrls() {
+    const rawName = pairDeviceNameInput ? pairDeviceNameInput.value.trim() : 'Child-Phone';
+    const cleanName = rawName.replace(/[^a-zA-Z0-9_-]/g, '-') || 'Child-Phone';
+    const profileUrl = `${window.location.origin}/api/devices/apple-profile?config=${encodeURIComponent(currentConfigId)}&name=${encodeURIComponent(cleanName)}`;
+    const dohUrl = `https://hub.officialum1.com/dns-query/${encodeURIComponent(currentConfigId)}/${encodeURIComponent(cleanName)}`;
+
+    if (downloadAppleProfileBtn) downloadAppleProfileBtn.href = profileUrl;
+    if (browserPairingDoh) browserPairingDoh.textContent = dohUrl;
+  }
+
+  if (openPairDeviceBtn) {
+    openPairDeviceBtn.addEventListener('click', () => {
+      updatePairingUrls();
+      if (pairDeviceModal) pairDeviceModal.classList.add('open');
+    });
+  }
+  if (closePairDeviceModalBtn) closePairDeviceModalBtn.addEventListener('click', () => pairDeviceModal.classList.remove('open'));
+  if (closePairDeviceDoneBtn) closePairDeviceDoneBtn.addEventListener('click', () => pairDeviceModal.classList.remove('open'));
+  if (pairDeviceNameInput) pairDeviceNameInput.addEventListener('input', updatePairingUrls);
+
+  if (copyAppleProfileLinkBtn && downloadAppleProfileBtn) {
+    copyAppleProfileLinkBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(downloadAppleProfileBtn.href);
+      showToast('Copied Apple profile download link! 🍏');
+    });
+  }
+  if (copyAndroidHostBtn) {
+    copyAndroidHostBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText('hub.officialum1.com');
+      showToast('Copied Android Private DNS hostname! 🤖');
+    });
+  }
+  if (copyPairingDohBtn && browserPairingDoh) {
+    copyPairingDohBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(browserPairingDoh.textContent);
+      showToast('Copied personal DoH URL! 🌐');
+    });
+  }
+
+  // --- BEDTIME & CURFEW MODAL ---
+  const bedtimeCurfewModal = document.getElementById('bedtimeCurfewModal');
+  const openBedtimeModalBtn = document.getElementById('openBedtimeModalBtn');
+  const closeBedtimeCurfewModalBtn = document.getElementById('closeBedtimeCurfewModalBtn');
+  const closeBedtimeCurfewDoneBtn = document.getElementById('closeBedtimeCurfewDoneBtn');
+  const addBedtimeScheduleForm = document.getElementById('addBedtimeScheduleForm');
+
+  async function refreshBedtimeSchedules() {
+    const tbody = document.getElementById('bedtimeSchedulesTableBody');
+    if (!tbody) return;
+    const res = await apiGet(`bedtime/schedules?config_id=${encodeURIComponent(currentConfigId)}`);
+    if (!res || !res.schedules || res.schedules.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-sub); padding: 20px;">
+            No bedtime curfews scheduled.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    tbody.innerHTML = res.schedules.map(s => {
+      return `
+        <tr>
+          <td><strong style="color: #60a5fa;">${s.client_scope || 'ALL (Whole House)'}</strong></td>
+          <td><span style="font-family: var(--font-mono); color: #fbbf24;">${s.start_time} ➔ ${s.end_time}</span></td>
+          <td style="color: #cbd5e1; font-size: 12px;">${s.days || 'All Days'}</td>
+          <td><span class="badge" style="background: rgba(16,185,129,0.18); color: #34d399; font-size: 10px;">ACTIVE</span></td>
+          <td style="text-align: right;">
+            <button class="btn btn-secondary btn-sm delete-bedtime-btn" data-id="${s.id}" style="padding: 3px 9px; font-size: 11px; color: #fca5a5; border-color: rgba(239,68,68,0.3);">
+              🗑️ Delete
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    document.querySelectorAll('.delete-bedtime-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const scheduleId = e.currentTarget.getAttribute('data-id');
+        await apiPost('bedtime/remove', { schedule_id: scheduleId });
+        showToast('Bedtime curfew removed.');
+        refreshBedtimeSchedules();
+      });
+    });
+  }
+
+  if (openBedtimeModalBtn) {
+    openBedtimeModalBtn.addEventListener('click', () => {
+      refreshBedtimeSchedules();
+      if (bedtimeCurfewModal) bedtimeCurfewModal.classList.add('open');
+    });
+  }
+  if (closeBedtimeCurfewModalBtn) closeBedtimeCurfewModalBtn.addEventListener('click', () => bedtimeCurfewModal.classList.remove('open'));
+  if (closeBedtimeCurfewDoneBtn) closeBedtimeCurfewDoneBtn.addEventListener('click', () => bedtimeCurfewModal.classList.remove('open'));
+
+  if (addBedtimeScheduleForm) {
+    addBedtimeScheduleForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const client = document.getElementById('bedtimeClientInput').value.trim() || 'ALL';
+      const startTime = document.getElementById('bedtimeStartInput').value;
+      const endTime = document.getElementById('bedtimeEndInput').value;
+      const dayCheckboxes = document.querySelectorAll('input[name="bedtimeDay"]:checked');
+      const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+      const res = await apiPost('bedtime/add', {
+        client,
+        start_time: startTime,
+        end_time: endTime,
+        days: days || 'Mon,Tue,Wed,Thu,Fri,Sat,Sun'
+      });
+      if (res && res.status === 'added') {
+        showToast('Bedtime curfew scheduled! 🕒');
+        refreshBedtimeSchedules();
+      }
+    });
+  }
+
   // --- INITIAL BOOTSTRAP ---
   refreshStatus();
   refreshWifiDevices();
   detectDnsStatus();
   refreshDnsLogs();
+  refreshCustomRules();
 
   // Uptime ticker
   setInterval(updateSystemMonitor, 1000);

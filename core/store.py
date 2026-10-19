@@ -216,6 +216,33 @@ class HubStore:
                 );
             """)
 
+            # 11. Custom Customer Whitelist / Blacklist Table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS custom_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    config_id TEXT NOT NULL,
+                    domain TEXT NOT NULL,
+                    action TEXT NOT NULL, -- 'BLOCK' or 'ALLOW'
+                    created_at REAL NOT NULL
+                );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_rules ON custom_rules(config_id, domain);")
+
+            # 12. Device Bedtime & Curfew Scheduler Table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS bedtime_schedules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    config_id TEXT NOT NULL,
+                    device_identifier TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
+                    days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6',
+                    is_active INTEGER DEFAULT 1,
+                    created_at REAL NOT NULL
+                );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_bedtime_dev ON bedtime_schedules(config_id, device_identifier);")
+
             # --- DYNAMIC SCHEMA MIGRATIONS (Preserves existing data) ---
             cfg_cols = [r["name"] for r in conn.execute("PRAGMA table_info(configurations);").fetchall()]
             for col, ctype, cdef in [
@@ -488,60 +515,97 @@ class HubStore:
 
     def block_client(self, ip: str, mac: str = "", reason: str = "Kicked by Admin"):
         clean_ip = ip.strip()
-        base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
+        base_ip = clean_ip.split("#")[0].split(" - ")[0] if ("#" in clean_ip or " - " in clean_ip) else clean_ip
+        space_name = clean_ip.replace("-", " ")
+        dash_name = clean_ip.replace(" ", "-")
         with self._get_conn() as conn:
             conn.execute("INSERT OR REPLACE INTO blocked_clients (ip, mac, reason, created_at) VALUES (?, ?, ?, ?);",
                          (clean_ip, mac.strip(), reason, time.time()))
             if base_ip != clean_ip:
                 conn.execute("INSERT OR REPLACE INTO blocked_clients (ip, mac, reason, created_at) VALUES (?, ?, ?, ?);",
                              (base_ip, mac.strip(), reason, time.time()))
-            conn.execute("UPDATE wifi_devices SET status = 'BLOCKED' WHERE ip = ? OR ip LIKE ?;", (clean_ip, f"{base_ip}%"))
+            conn.execute("""
+                UPDATE wifi_devices 
+                SET status = 'BLOCKED' 
+                WHERE ip = ? OR ip LIKE ? OR name = ? OR name = ? OR name = ? OR name LIKE ?;
+            """, (clean_ip, f"{base_ip}%", clean_ip, space_name, dash_name, f"%{clean_ip}%"))
             conn.commit()
 
     def unblock_client(self, ip: str):
         clean_ip = ip.strip()
-        base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
+        base_ip = clean_ip.split("#")[0].split(" - ")[0] if ("#" in clean_ip or " - " in clean_ip) else clean_ip
+        space_name = clean_ip.replace("-", " ")
+        dash_name = clean_ip.replace(" ", "-")
         with self._get_conn() as conn:
-            cur = conn.execute("SELECT name, mac FROM wifi_devices WHERE ip = ? OR ip = ?;", (clean_ip, base_ip))
+            cur = conn.execute("SELECT name, mac FROM wifi_devices WHERE ip = ? OR ip = ? OR name = ?;", (clean_ip, base_ip, clean_ip))
             row = cur.fetchone()
             d_name = row["name"] if row else ""
             d_mac = row["mac"] if row else ""
 
-            conn.execute("DELETE FROM blocked_clients WHERE ip = ? OR ip = ?;", (clean_ip, base_ip))
+            conn.execute("DELETE FROM blocked_clients WHERE ip = ? OR ip = ? OR ip = ? OR ip = ?;", (clean_ip, base_ip, space_name, dash_name))
             if d_name:
                 conn.execute("DELETE FROM blocked_clients WHERE ip = ?;", (d_name,))
             if d_mac:
                 conn.execute("DELETE FROM blocked_clients WHERE mac = ?;", (d_mac,))
-            conn.execute("UPDATE wifi_devices SET status = 'SHIELDED' WHERE ip = ? OR ip LIKE ? OR name = ?;", (clean_ip, f"{base_ip}%", d_name))
+            conn.execute("""
+                UPDATE wifi_devices 
+                SET status = 'SHIELDED' 
+                WHERE ip = ? OR ip LIKE ? OR name = ? OR name = ? OR name = ? OR name LIKE ?;
+            """, (clean_ip, f"{base_ip}%", clean_ip, space_name, dash_name, f"%{clean_ip}%"))
             conn.commit()
 
     def is_client_blocked(self, identifier: str, config_id: str = "") -> bool:
         if not identifier: return False
         clean = identifier.strip()
         base = clean.split("#")[0].split(" - ")[0] if ("#" in clean or " - " in clean) else clean
+        tag = clean.split("#")[-1].strip() if "#" in clean else ""
+        space_name = clean.replace("-", " ")
+        dash_name = clean.replace(" ", "-")
+
         with self._get_conn() as conn:
-            cur = conn.execute("SELECT 1 FROM blocked_clients WHERE ip = ? OR ip = ? OR ip LIKE ?;", (clean, base, f"%{clean}%"))
+            # 1. Check blocked_clients table
+            cur = conn.execute("""
+                SELECT 1 FROM blocked_clients 
+                WHERE ip = ? OR ip = ? OR ip = ? OR ip = ? OR ip = ? 
+                   OR ip LIKE ? OR mac = ?;
+            """, (clean, base, tag, space_name, dash_name, f"%{clean}%", clean))
             if cur.fetchone() is not None:
                 return True
+
+            # 2. Check wifi_devices table for status BLOCKED or KICKED
             cur2 = conn.execute("""
                 SELECT 1 FROM wifi_devices 
-                WHERE (ip = ? OR ip = ? OR name = ? OR name LIKE ? OR ip LIKE ?) 
-                  AND status = 'BLOCKED';
-            """, (clean, base, clean, f"%{clean}%", f"%{clean}%"))
+                WHERE (ip = ? OR ip = ? OR ip = ? OR name = ? OR name = ? OR name = ? OR mac = ? 
+                       OR name LIKE ? OR ip LIKE ?) 
+                  AND status IN ('BLOCKED', 'KICKED');
+            """, (clean, base, tag, clean, space_name, dash_name, clean, f"%{clean}%", f"%{clean}%"))
             if cur2.fetchone() is not None:
                 return True
+
         return False
 
-    def is_client_paused(self, identifier: str) -> bool:
+    def is_client_paused(self, identifier: str, config_id: str = "") -> bool:
         if not identifier: return False
         clean = identifier.strip()
         base = clean.split("#")[0].split(" - ")[0] if ("#" in clean or " - " in clean) else clean
+        tag = clean.split("#")[-1].strip() if "#" in clean else ""
+        space_name = clean.replace("-", " ")
+        dash_name = clean.replace(" ", "-")
+
+        # 1. Dynamic bedtime curfew schedule check
+        try:
+            if self.is_device_in_bedtime(config_id or "cfg_officialum1", clean):
+                return True
+        except Exception:
+            pass
+
         with self._get_conn() as conn:
             cur = conn.execute("""
                 SELECT 1 FROM wifi_devices 
-                WHERE (ip = ? OR ip = ? OR name = ? OR name LIKE ? OR ip LIKE ?) 
+                WHERE (ip = ? OR ip = ? OR ip = ? OR name = ? OR name = ? OR name = ? OR mac = ? 
+                       OR name LIKE ? OR ip LIKE ?) 
                   AND status = 'PAUSED';
-            """, (clean, base, clean, f"%{clean}%", f"%{clean}%"))
+            """, (clean, base, tag, clean, space_name, dash_name, clean, f"%{clean}%", f"%{clean}%"))
             return cur.fetchone() is not None
 
     def get_wifi_devices(self, config_id: str = "cfg_officialum1") -> List[Dict[str, Any]]:
@@ -574,9 +638,15 @@ class HubStore:
     def pause_device(self, ip: str, is_paused: bool) -> None:
         status = "PAUSED" if is_paused else "SHIELDED"
         clean_ip = ip.strip()
-        base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
+        base_ip = clean_ip.split("#")[0].split(" - ")[0] if ("#" in clean_ip or " - " in clean_ip) else clean_ip
+        space_name = clean_ip.replace("-", " ")
+        dash_name = clean_ip.replace(" ", "-")
         with self._get_conn() as conn:
-            conn.execute("UPDATE wifi_devices SET status = ? WHERE ip = ? OR ip LIKE ?;", (status, clean_ip, f"{base_ip}%"))
+            conn.execute("""
+                UPDATE wifi_devices 
+                SET status = ? 
+                WHERE ip = ? OR ip LIKE ? OR name = ? OR name = ? OR name = ? OR name LIKE ?;
+            """, (status, clean_ip, f"{base_ip}%", clean_ip, space_name, dash_name, f"%{clean_ip}%"))
             conn.commit()
 
     def delete_wifi_device(self, ip: str) -> None:
@@ -586,14 +656,94 @@ class HubStore:
             conn.execute("DELETE FROM wifi_devices WHERE ip = ? OR ip LIKE ?;", (clean_ip, f"{base_ip}%"))
             conn.commit()
 
-    def is_client_paused(self, ip: str) -> bool:
-        if not ip: return False
-        clean_ip = ip.strip()
-        base_ip = clean_ip.split("#")[0] if "#" in clean_ip else clean_ip
+    # ========== CUSTOM RULES (WHITELIST / BLACKLIST) API ==========
+    def add_custom_rule(self, config_id: str, domain: str, action: str = "BLOCK") -> Dict[str, Any]:
+        clean_domain = domain.strip().lower().rstrip(".")
+        action = action.upper() if action.upper() in ("BLOCK", "ALLOW") else "BLOCK"
+        if not config_id: config_id = "cfg_officialum1"
         with self._get_conn() as conn:
-            cur = conn.execute("SELECT status FROM wifi_devices WHERE ip = ? OR ip = ?;", (clean_ip, base_ip))
+            conn.execute("DELETE FROM custom_rules WHERE config_id = ? AND domain = ?;", (config_id, clean_domain))
+            cur = conn.execute("INSERT INTO custom_rules (config_id, domain, action, created_at) VALUES (?, ?, ?, ?);",
+                               (config_id, clean_domain, action, time.time()))
+            conn.commit()
+            return {"id": cur.lastrowid, "config_id": config_id, "domain": clean_domain, "action": action}
+
+    def remove_custom_rule(self, rule_id: int, config_id: str = "cfg_officialum1") -> bool:
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM custom_rules WHERE id = ? AND config_id = ?;", (rule_id, config_id))
+            conn.commit()
+            return True
+
+    def get_custom_rules(self, config_id: str = "cfg_officialum1") -> List[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT * FROM custom_rules WHERE config_id = ? ORDER BY domain ASC;", (config_id,))
+            return [dict(r) for r in cur.fetchall()]
+
+    def check_custom_rule(self, config_id: str, domain: str) -> Optional[str]:
+        if not domain: return None
+        d = domain.lower().rstrip(".")
+        with self._get_conn() as conn:
+            cur = conn.execute("SELECT action FROM custom_rules WHERE config_id = ? AND domain = ?;", (config_id, d))
             row = cur.fetchone()
-            return row is not None and row["status"] == "PAUSED"
+            if row:
+                return row["action"]
+            parts = d.split(".")
+            for i in range(1, len(parts) - 1):
+                parent = ".".join(parts[i:])
+                cur2 = conn.execute("SELECT action FROM custom_rules WHERE config_id = ? AND domain = ?;", (config_id, parent))
+                row2 = cur2.fetchone()
+                if row2:
+                    return row2["action"]
+        return None
+
+    # ========== BEDTIME & CURFEW SCHEDULER API ==========
+    def add_bedtime_schedule(self, config_id: str, device_identifier: str, start_time: str, end_time: str, days: str = "0,1,2,3,4,5,6") -> Dict[str, Any]:
+        if not config_id: config_id = "cfg_officialum1"
+        clean_dev = device_identifier.strip()
+        with self._get_conn() as conn:
+            cur = conn.execute("""
+                INSERT INTO bedtime_schedules (config_id, device_identifier, start_time, end_time, days, is_active, created_at)
+                VALUES (?, ?, ?, ?, ?, 1, ?);
+            """, (config_id, clean_dev, start_time.strip(), end_time.strip(), days.strip(), time.time()))
+            conn.commit()
+            return {"id": cur.lastrowid, "config_id": config_id, "device_identifier": clean_dev, "start_time": start_time, "end_time": end_time, "days": days}
+
+    def remove_bedtime_schedule(self, schedule_id: int, config_id: str = "cfg_officialum1") -> bool:
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM bedtime_schedules WHERE id = ? AND config_id = ?;", (schedule_id, config_id))
+            conn.commit()
+            return True
+
+    def get_bedtime_schedules(self, config_id: str = "cfg_officialum1", device_identifier: str = None) -> List[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            if device_identifier:
+                cur = conn.execute("SELECT * FROM bedtime_schedules WHERE config_id = ? AND device_identifier = ? ORDER BY created_at DESC;", (config_id, device_identifier))
+            else:
+                cur = conn.execute("SELECT * FROM bedtime_schedules WHERE config_id = ? ORDER BY created_at DESC;", (config_id,))
+            return [dict(r) for r in cur.fetchall()]
+
+    def is_device_in_bedtime(self, config_id: str, device_identifier: str) -> bool:
+        if not device_identifier: return False
+        clean = device_identifier.strip()
+        base = clean.split("#")[0].split(" - ")[0] if ("#" in clean or " - " in clean) else clean
+        tag = clean.split("#")[-1].strip() if "#" in clean else ""
+        space_name = clean.replace("-", " ")
+
+        schedules = self.get_bedtime_schedules(config_id)
+        if not schedules:
+            return False
+
+        try:
+            from core.scheduler import is_curfew_active
+        except ImportError:
+            return False
+
+        for sch in schedules:
+            match_id = sch.get("device_identifier", "").strip()
+            if match_id in (clean, base, tag, space_name, "all", "ALL", "*"):
+                if is_curfew_active(sch):
+                    return True
+        return False
 
     # ========== NEXTDNS-STYLE MULTI-TENANT & LINKED IP API ==========
     def get_or_create_config(self, config_id: str = "cfg_officialum1", name: str = "OfficialUM1 Enterprise Shield") -> Dict[str, Any]:

@@ -157,21 +157,25 @@ def create_app(store: HubStore, dns_firewall: DnsFirewall) -> Flask:
                 pass
 
         is_blocked = (
-            store.is_client_blocked(raw_ip) or 
-            store.is_client_blocked(client_key) or 
-            (dev_tag and store.is_client_blocked(dev_tag)) or
-            store.is_client_paused(raw_ip) or 
-            store.is_client_paused(client_key) or 
-            (dev_tag and store.is_client_paused(dev_tag))
+            store.is_client_blocked(raw_ip, target_config) or 
+            store.is_client_blocked(client_key, target_config) or 
+            (dev_tag and store.is_client_blocked(dev_tag, target_config)) or
+            store.is_client_paused(raw_ip, target_config) or 
+            store.is_client_paused(client_key, target_config) or 
+            (dev_tag and store.is_client_paused(dev_tag, target_config))
         )
         if is_blocked:
-            # Immediate hard cut-off: return 0.0.0.0 for DNS query so internet is dead
+            # Immediate hard cut-off: return 0.0.0.0 (or :: for AAAA) for DNS query so internet is dead
             try:
-                from dnslib import DNSRecord, RR, QTYPE, A
+                from dnslib import DNSRecord, RR, QTYPE, A, AAAA
                 raw_d = request.get_data() if request.method == "POST" else base64.urlsafe_b64decode(request.args.get("dns", "") + "==")
                 req_rec = DNSRecord.parse(raw_d)
                 rep = req_rec.reply()
-                rep.add_answer(RR(req_rec.q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=1))
+                qtype = req_rec.q.qtype if req_rec.q else QTYPE.A
+                if qtype == QTYPE.AAAA:
+                    rep.add_answer(RR(req_rec.q.qname, QTYPE.AAAA, rdata=AAAA("::"), ttl=1))
+                else:
+                    rep.add_answer(RR(req_rec.q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=1))
                 return Response(rep.pack(), mimetype="application/dns-message")
             except Exception:
                 return Response(b"", status=403)

@@ -314,6 +314,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Security &amp; Family Shields
       </button>
+      <button class="tab-btn" data-tab="rulesTab" id="rulesTabBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Custom Rules &amp; Whitelist
+      </button>
       <button class="tab-btn" data-tab="logsTab" id="logsTabBtn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Real-Time Query Logs
@@ -603,15 +607,49 @@
 
     <!-- TAB 2: WI-FI & CONNECTED DEVICES -->
     <section id="wifiTab" class="tab-content">
-      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
         <div>
           <h2 class="section-title">Connected Devices &amp; Real Bandwidth Meter</h2>
           <p class="section-desc">Live monitor of every mobile, TV, console, and computer on your Wi-Fi with real consumed data and 1-click internet pause.</p>
         </div>
-        <button class="btn btn-primary" id="refreshWifiBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Scan &amp; Refresh
-        </button>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-secondary" id="openPairDeviceBtn" style="border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
+            📱 + Pair Child Phone (Zero-Install)
+          </button>
+          <button class="btn btn-secondary" id="openBedtimeModalBtn" style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+            🕒 Bedtime Curfew
+          </button>
+          <button class="btn btn-primary" id="refreshWifiBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Scan &amp; Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Whole Home Network Gateway Master Card -->
+      <div class="stat-card" style="margin-bottom: 20px; padding: 18px 24px; border: 1px solid rgba(59, 130, 246, 0.35); background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="font-size: 32px;">🏠</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Whole Home Network (Router Master Switch)</h3>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 11px;">ALL 7 DEVICES</span>
+              </div>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-sub);">
+                Router DNS: <code style="color: #60a5fa;" id="routerDnsDisplay">142.93.19.40</code> | Public WAN IP: <strong id="routerWanDisplay" style="color: #38bdf8;">103.72.2.182</strong>
+              </p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button class="btn btn-secondary btn-sm" id="pauseWholeHomeBtn" style="padding: 6px 14px; font-weight: 600; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">
+              ⏸️ Pause Whole Home
+            </button>
+            <button class="btn btn-danger btn-sm" id="cutoffWholeHomeBtn" style="padding: 6px 14px; font-weight: 600; background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5;">
+              ⚡ Kill Whole Home Net
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="table-container table-card">
@@ -757,6 +795,70 @@
           <p style="font-size: 12.5px; color: var(--text-sub); line-height: 1.5;">Sever Roblox client authentication, avatar assets, and game instance servers for kids' digital well-being.</p>
           <div style="margin-top: 14px; font-size: 11px; color: #a855f7; font-weight: 600;" id="robloxStatusText">● Hard Kill DNS Inactive</div>
         </div>
+      </div>
+    </section>
+
+    <!-- TAB: CUSTOM RULES & WHITELIST -->
+    <section id="rulesTab" class="tab-content">
+      <div class="section-header" style="margin-bottom: 20px;">
+        <div>
+          <h2 class="section-title">Custom Domain Rules &amp; Whitelist</h2>
+          <p class="section-desc">Instantly whitelist false positives or permanently block custom domains network-wide or per-device.</p>
+        </div>
+      </div>
+
+      <!-- Add Rule Card -->
+      <div class="stat-card" style="padding: 20px; margin-bottom: 24px; border: 1px solid rgba(59, 130, 246, 0.25);">
+        <h3 style="margin-top: 0; margin-bottom: 14px; font-size: 15px; font-weight: 700; color: #fff;">+ Add New Domain Rule</h3>
+        <form id="addCustomRuleForm" style="display: grid; grid-template-columns: 2fr 1fr 1.5fr 2fr auto; gap: 12px; align-items: end;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;">DOMAIN (e.g. example.com or *.roblox.com)</label>
+            <input type="text" id="customRuleDomainInput" class="form-control" placeholder="example.com" required style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; padding: 8px 12px; color: #fff; font-family: var(--font-mono); font-size: 13px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;">ACTION</label>
+            <select id="customRuleActionSelect" class="form-control" style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; padding: 8px 10px; color: #fff; font-size: 13px;">
+              <option value="BLOCK">🚫 BLOCK (Blacklist)</option>
+              <option value="ALLOW">🟢 ALLOW (Whitelist)</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;">APPLIES TO</label>
+            <input type="text" id="customRuleClientInput" class="form-control" placeholder="ALL (or Tag/IP)" value="ALL" style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;">REASON / COMMENT (Optional)</label>
+            <input type="text" id="customRuleCommentInput" class="form-control" placeholder="e.g. Unblock work app" style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px;">
+          </div>
+          <div>
+            <button type="submit" class="btn btn-primary" id="saveCustomRuleBtn" style="padding: 9px 18px; font-weight: 600;">
+              Add Rule
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Rules List Table -->
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>DOMAIN PATTERN</th>
+              <th>ACTION</th>
+              <th>APPLIES TO</th>
+              <th>COMMENT / REASON</th>
+              <th>ADDED AT</th>
+              <th style="text-align: right;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="customRulesTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-sub); padding: 30px;">
+                No custom rules created yet.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -921,6 +1023,151 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" id="closeGuideDoneBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAIR DEVICE MODAL (ZERO-INSTALL MOBILE PROFILES) -->
+  <div class="modal-overlay" id="pairDeviceModal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">📱 Zero-Install Device Pairing (Apple / Android / Windows)</h3>
+        <button class="modal-close" id="closePairDeviceModalBtn">&times;</button>
+      </div>
+      <div class="modal-body guide-content">
+        <p class="guide-intro">
+          Pairing gives this individual device its own personal DNS tunnel. Even if the child switches to 4G/5G or leaves home, your parental controls, schedules, and cut-off work <strong>100% anywhere in the world with ZERO apps to install!</strong>
+        </p>
+
+        <!-- Dynamic Device Name Tag -->
+        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #93c5fd; margin-bottom: 6px;">
+            Target Child or Device Name:
+          </label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="pairDeviceNameInput" placeholder="e.g. Ali-Phone, Hamza-iPad, Work-Mac" value="Child-Phone" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px 14px; color: #fff; font-family: var(--font-mono); font-size: 13px;">
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">🍏</div>
+          <div class="step-body">
+            <h4 style="color: #60a5fa;">Apple iOS &amp; iPadOS (1-Click Configuration Profile)</h4>
+            <p>Open this download link on Safari on your iPhone or iPad. It installs a native Encrypted DNS profile directly into iOS settings. Zero battery drain.</p>
+            <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center; flex-wrap: wrap;">
+              <a id="downloadAppleProfileBtn" href="#" class="btn btn-primary" style="padding: 8px 16px; text-decoration: none; font-weight: 600;">
+                📥 Download Apple .mobileconfig Profile
+              </a>
+              <button class="btn btn-secondary btn-sm" id="copyAppleProfileLinkBtn" style="padding: 7px 12px;">
+                📋 Copy Link for Safari
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">🤖</div>
+          <div class="step-body">
+            <h4 style="color: #34d399;">Android (Native Private DNS)</h4>
+            <p>Go to Android <strong>Settings</strong> ➔ <strong>Connections</strong> ➔ <strong>More connection settings</strong> ➔ <strong>Private DNS</strong> ➔ Choose <em>Private DNS provider hostname</em> and enter:</p>
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+              <code id="androidPairingHost" class="code-badge" style="color: #34d399; font-size: 13px; padding: 8px 12px; background: rgba(0,0,0,0.5); flex: 1;">hub.officialum1.com</code>
+              <button class="btn btn-secondary btn-sm" id="copyAndroidHostBtn">📋 Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">🌐</div>
+          <div class="step-body">
+            <h4 style="color: #fbbf24;">Direct DNS-over-HTTPS (Chrome / Edge / Firefox / Windows 11)</h4>
+            <p>In browser settings (Privacy and security ➔ Use secure DNS ➔ Custom):</p>
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+              <code id="browserPairingDoh" class="code-badge" style="color: #38bdf8; font-size: 12px; padding: 8px 12px; background: rgba(0,0,0,0.5); flex: 1; word-break: break-all;">https://hub.officialum1.com/dns-query/default/Child-Phone</code>
+              <button class="btn btn-secondary btn-sm" id="copyPairingDohBtn">📋 Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="closePairDeviceDoneBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BEDTIME & CURFEW SCHEDULE MODAL -->
+  <div class="modal-overlay" id="bedtimeCurfewModal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">🕒 Bedtime &amp; Curfew Automated Internet Schedules</h3>
+        <button class="modal-close" id="closeBedtimeCurfewModalBtn">&times;</button>
+      </div>
+      <div class="modal-body guide-content">
+        <p class="guide-intro">
+          Automatically cut off internet access during homework or sleeping hours. When bedtime begins, all DNS queries are blocked until morning.
+        </p>
+
+        <!-- Add Schedule Form -->
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+          <h4 style="margin: 0 0 14px 0; color: #fbbf24; font-size: 14px;">+ Set New Curfew Rule</h4>
+          <form id="addBedtimeScheduleForm">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+              <div>
+                <label style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;">TARGET DEVICE / TAG</label>
+                <input type="text" id="bedtimeClientInput" class="form-control" placeholder="ALL (Whole House) or specific Device Tag / IP" value="ALL" required style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px;">
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;">BEDTIME (CUT-OFF)</label>
+                <input type="time" id="bedtimeStartInput" class="form-control" value="22:00" required style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px;">
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px;">WAKE UP (RESTORE)</label>
+                <input type="time" id="bedtimeEndInput" class="form-control" value="06:00" required style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.4); border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px;">
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 12px; color: #cbd5e1;">
+                <label><input type="checkbox" name="bedtimeDay" value="Mon" checked> Mon</label>
+                <label><input type="checkbox" name="bedtimeDay" value="Tue" checked> Tue</label>
+                <label><input type="checkbox" name="bedtimeDay" value="Wed" checked> Wed</label>
+                <label><input type="checkbox" name="bedtimeDay" value="Thu" checked> Thu</label>
+                <label><input type="checkbox" name="bedtimeDay" value="Fri" checked> Fri</label>
+                <label><input type="checkbox" name="bedtimeDay" value="Sat" checked> Sat</label>
+                <label><input type="checkbox" name="bedtimeDay" value="Sun" checked> Sun</label>
+              </div>
+              <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-weight: 600;">
+                Save Curfew Schedule
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Active Schedules Table -->
+        <h4 style="margin: 0 0 10px 0; color: #fff; font-size: 14px;">Active Bedtime Curfews</h4>
+        <div class="table-card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>TARGET DEVICE</th>
+                <th>CURFEW HOURS</th>
+                <th>ACTIVE DAYS</th>
+                <th>STATUS</th>
+                <th style="text-align: right;">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="bedtimeSchedulesTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-sub); padding: 20px;">
+                  No bedtime curfews scheduled.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="closeBedtimeCurfewDoneBtn">Close</button>
       </div>
     </div>
   </div>

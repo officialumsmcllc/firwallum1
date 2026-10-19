@@ -449,12 +449,12 @@ class DnsFirewall:
         # 0a. Device 1-Click Internet Pause / Hard Block Cut-Off
         clean_ip = client_ip.split("#")[0] if "#" in client_ip else client_ip
         dev_blocked = (
-            self.store.is_client_blocked(client_ip) or 
-            self.store.is_client_blocked(clean_ip) or 
-            (device_name and self.store.is_client_blocked(device_name)) or
-            self.store.is_client_paused(client_ip) or 
-            self.store.is_client_paused(clean_ip) or
-            (device_name and self.store.is_client_paused(device_name))
+            self.store.is_client_blocked(client_ip, config_id) or 
+            self.store.is_client_blocked(clean_ip, config_id) or 
+            (device_name and self.store.is_client_blocked(device_name, config_id)) or
+            self.store.is_client_paused(client_ip, config_id) or 
+            self.store.is_client_paused(clean_ip, config_id) or
+            (device_name and self.store.is_client_paused(device_name, config_id))
         )
         if dev_blocked:
             self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_KICKED", device_name=device_name, config_id=config_id)
@@ -462,7 +462,15 @@ class DnsFirewall:
             reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=1))
             return reply.pack()
 
-        # 0b. Smart TV Telemetry & Video Ad Tracker Shield
+        # 0b. Custom Customer Whitelist / Blacklist Rule Precedence
+        custom_action = self.store.check_custom_rule(config_id, qname)
+        if custom_action == "BLOCK":
+            self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_CUSTOM", device_name=device_name, config_id=config_id)
+            reply = req.reply()
+            reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=5))
+            return reply.pack()
+
+        # 0c. Smart TV Telemetry & Video Ad Tracker Shield
         if cfg.get("smart_tv_shield", 1) == 1:
             smart_tv_trackers = (
                 "samsungcloudplatform.com", "samsungqbe.com", "log-config.samsungcloudcdn.com",
@@ -475,8 +483,8 @@ class DnsFirewall:
                 reply.add_answer(RR(q.qname, QTYPE.A, rdata=A("0.0.0.0"), ttl=300))
                 return reply.pack()
 
-        # 1. Per-Tenant DNS Adblock Check (controlled by dashboard toggle)
-        if cfg.get("adblock_enabled", 1) == 1:
+        # 1. Per-Tenant DNS Adblock Check (controlled by dashboard toggle, skipped if ALLOWed by custom rule)
+        if custom_action != "ALLOW" and cfg.get("adblock_enabled", 1) == 1:
             if self._is_blocked(qname):
                 self.store.log_dns_query(domain=qname, qtype=qtype_str, client_ip=client_ip, status="BLOCKED_AD", device_name=device_name, config_id=config_id)
                 reply = req.reply()
