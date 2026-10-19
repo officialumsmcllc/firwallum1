@@ -71,6 +71,11 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
         tenant_devices = store.get_wifi_devices(config_id=config_id)
         active_devices_count = len(tenant_devices)
 
+        # Real tenant DNS metrics from dns_logs
+        dns_summary = store.get_tenant_dns_summary(config_id=config_id)
+        total_queries = dns_summary.get("total_queries", 0)
+        blocked_threats = dns_summary.get("blocked_threats", 0)
+
         return jsonify({
             "status": "ONLINE" if is_active else "SUSPENDED",
             "hub_ip": settings.get("hub_ip", "127.0.0.1"),
@@ -82,6 +87,8 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             "expires_at": cfg.get("expires_at", 0),
             "total_ports": len(ports),
             "active_devices": active_devices_count,
+            "total_queries": total_queries,
+            "blocked_threats": blocked_threats,
             "proxy_active_count": sum(1 for p in ports if p.get("status") == "ACTIVE"),
             "dns_clients": [d["ip"] for d in tenant_devices],
             "dns_clients_count": active_devices_count,
@@ -223,6 +230,7 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
 
         # 1. Fetch persistent devices scoped strictly to this customer tenant config
         stored_devs = store.get_wifi_devices(config_id=config_id)
+        device_metrics = store.get_device_dns_metrics(config_id=config_id)
 
         from core.store import traffic_tracker
         devices = []
@@ -245,10 +253,17 @@ def create_api_blueprint(store: HubStore, dns_firewall) -> Blueprint:
             dev["total_gb"] = st["total_gb"]
             dev["is_active"] = st["is_active"]
             dev["assigned_port"] = dev.get("assigned_port") or store.get_port_for_client_ip(dev["display_ip"])
+
+            # Real NextDNS-style DNS query telemetry
+            tag = raw_ip.split("#", 1)[1] if "#" in raw_ip else ""
+            m = device_metrics.get(raw_ip) or device_metrics.get(dev["display_ip"]) or (device_metrics.get(tag) if tag else None) or device_metrics.get(dev.get("name", "")) or {}
+            dev["total_queries"] = m.get("total_queries", 0)
+            dev["blocked_queries"] = m.get("blocked_queries", 0)
+
             devices.append(dev)
 
-        # Sort: active unblocked first, then by data used
-        devices.sort(key=lambda d: (1 if d["is_blocked"] else 0, -d["total_mb"]))
+        # Sort: unblocked first, then by query activity
+        devices.sort(key=lambda d: (1 if d["is_blocked"] else 0, -d["total_queries"]))
 
         return jsonify({
             "devices": devices,

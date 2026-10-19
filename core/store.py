@@ -282,29 +282,26 @@ class HubStore:
                     (8110, "PC 10 (Team Member)")
                 ]
                 conn.executemany("INSERT INTO ports (port, device_name) VALUES (?, ?);", default_ports)
-            # Seed persistent Huawei Router Devices with real router devices
+            # Clean up all legacy fake LAN IPs (192.168.100.x cannot be individually isolated under NAT)
+            conn.execute("DELETE FROM wifi_devices WHERE ip LIKE '192.168.100.%';")
+            fake_dummy_ips = ("192.168.100.15", "192.168.100.18", "192.168.100.22", "192.168.100.31", "192.168.100.2", "192.168.100.45", "192.168.100.67", "192.168.100.158", "192.168.100.95", "192.168.100.98", "192.168.100.100", "192.168.100.137", "192.168.100.61")
+            placeholders = ",".join("?" for _ in fake_dummy_ips)
+            conn.execute(f"DELETE FROM wifi_devices WHERE ip IN ({placeholders});", fake_dummy_ips)
+
+            # Seed real Home Wi-Fi Router Gateway and verified paired devices
             real_router_devices = [
-                ("192.168.100.158", "cfg_officialum1", "48:4D:7E:E9:25:DD", "Host PC (Admin)", "PC (Firewall Admin)", "SHIELDED", 8101, 0, 0.0, time.time()),
-                ("192.168.100.95", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, 0, 0.0, time.time()),
-                ("192.168.100.98", "cfg_officialum1", "1E:91:0C:0E:DB:42", "Infinix HOT 11 Play", "Android Smartphone (Wi-Fi)", "SHIELDED", 8107, 0, 0.0, time.time()),
-                ("192.168.100.100", "cfg_officialum1", "5E:E4:9F:53:4E:49", "Mobile Device (Wi-Fi)", "Smartphone (Wi-Fi)", "SHIELDED", 8108, 0, 0.0, time.time()),
-                ("192.168.100.137", "cfg_officialum1", "38:BA:F8:84:F3:05", "Client PC Laptop (PC 02)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, 0, 0.0, time.time()),
-                ("192.168.100.61", "cfg_officialum1", "08:CC:81:18:C9:98", "Ethernet Device (Port 1)", "LAN Client", "SHIELDED", 8106, 0, 0.0, time.time()),
+                ("103.72.2.182", "cfg_officialum1", "", "Home Wi-Fi Router (Whole Network)", "Router Gateway (DHCP DNS)", "SHIELDED", 8100, 0, 0.0, time.time()),
+                ("103.72.2.182#Vivo-V2109", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (DoH / Private DNS)", "SHIELDED", 8104, 0, 0.0, time.time()),
+                ("103.72.2.182#windows-pc", "cfg_officialum1", "38:BA:F8:84:F3:05", "Windows PC / Laptop", "Windows Client (DoH / Secure DNS)", "SHIELDED", 8102, 0, 0.0, time.time()),
             ]
             for dev in real_router_devices:
                 conn.execute("""
                     INSERT INTO wifi_devices (ip, config_id, mac, name, type, status, assigned_port, bytes_used, last_speed_kbps, last_seen)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(ip) DO UPDATE SET
-                    mac = CASE WHEN excluded.mac != '' THEN excluded.mac ELSE wifi_devices.mac END,
-                    name = CASE WHEN wifi_devices.name = '' OR wifi_devices.name LIKE 'Device %' THEN excluded.name ELSE wifi_devices.name END,
+                    name = excluded.name,
                     type = excluded.type;
                 """, dev)
-
-            # Clean up any legacy dummy IPs
-            fake_dummy_ips = ("192.168.100.15", "192.168.100.18", "192.168.100.22", "192.168.100.31", "192.168.100.2", "192.168.100.45", "192.168.100.67")
-            placeholders = ",".join("?" for _ in fake_dummy_ips)
-            conn.execute(f"DELETE FROM wifi_devices WHERE ip IN ({placeholders});", fake_dummy_ips)
 
             # Seed default settings
             default_settings = {
@@ -617,6 +614,53 @@ class HubStore:
             else:
                 cur = conn.execute("SELECT * FROM wifi_devices ORDER BY last_seen DESC, ip ASC;")
             return [dict(r) for r in cur.fetchall()]
+
+    def get_device_dns_metrics(self, config_id: str = "cfg_officialum1") -> Dict[str, Dict[str, int]]:
+        """Calculates real total queries and blocked queries per device from dns_logs."""
+        if not config_id or config_id == "default":
+            config_id = "cfg_officialum1"
+        metrics = {}
+        with self._get_conn() as conn:
+            rows = conn.execute("""
+                SELECT 
+                    COALESCE(NULLIF(device_name, ''), client_ip) as dev_key,
+                    client_ip,
+                    device_name,
+                    COUNT(*) as total_queries,
+                    SUM(CASE WHEN status LIKE 'BLOCKED%' THEN 1 ELSE 0 END) as blocked_queries
+                FROM dns_logs
+                WHERE config_id = ? OR config_id = 'default'
+                GROUP BY dev_key;
+            """, (config_id,)).fetchall()
+            for r in rows:
+                key = r["dev_key"]
+                data = {
+                    "total_queries": int(r["total_queries"] or 0),
+                    "blocked_queries": int(r["blocked_queries"] or 0)
+                }
+                metrics[key] = data
+                if r["client_ip"]:
+                    metrics[r["client_ip"]] = data
+                if r["device_name"]:
+                    metrics[r["device_name"]] = data
+        return metrics
+
+    def get_tenant_dns_summary(self, config_id: str = "cfg_officialum1") -> Dict[str, int]:
+        """Calculates total queries and total blocked threats for the tenant."""
+        if not config_id or config_id == "default":
+            config_id = "cfg_officialum1"
+        with self._get_conn() as conn:
+            row = conn.execute("""
+                SELECT 
+                    COUNT(*) as total_queries,
+                    SUM(CASE WHEN status LIKE 'BLOCKED%' THEN 1 ELSE 0 END) as blocked_threats
+                FROM dns_logs
+                WHERE config_id = ? OR config_id = 'default';
+            """, (config_id,)).fetchone()
+            return {
+                "total_queries": int(row["total_queries"] or 0) if row else 0,
+                "blocked_threats": int(row["blocked_threats"] or 0) if row else 0
+            }
 
     def upsert_wifi_device(self, ip: str, name: str, mac: str = "", dev_type: str = "Wireless Device", port: int = 0, config_id: str = "cfg_officialum1", initial_bytes: int = 0):
         if not config_id or config_id == "default":

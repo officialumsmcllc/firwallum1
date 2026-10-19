@@ -234,15 +234,15 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-label">TOTAL DATA CONSUMED</div>
-        <div class="stat-val" id="statTotalTraffic" style="color: #38bdf8;">0.00 GB</div>
-        <div class="stat-sub" id="statTotalTrafficSub">Real Wi-Fi bandwidth</div>
+        <div class="stat-label">TOTAL DNS QUERIES</div>
+        <div class="stat-val" id="statTotalQueries" style="color: #38bdf8;">0</div>
+        <div class="stat-sub" id="statTotalQueriesSub">Live queries resolved</div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-label">LIVE AGGREGATE SPEED</div>
-        <div class="stat-val" id="statLiveSpeed" style="color: #60a5fa;">0 KB/s</div>
-        <div class="stat-sub">Real-time throughput</div>
+        <div class="stat-label">THREATS &amp; ADS BLOCKED</div>
+        <div class="stat-val" id="statBlockedThreats" style="color: #f87171;">0</div>
+        <div class="stat-sub" id="statBlockedThreatsSub">Malware, ads &amp; adult blocked</div>
       </div>
 
       <div class="stat-card stat-action">
@@ -609,8 +609,8 @@
     <section id="wifiTab" class="tab-content">
       <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
         <div>
-          <h2 class="section-title">Connected Devices &amp; Real Bandwidth Meter</h2>
-          <p class="section-desc">Live monitor of every mobile, TV, console, and computer on your Wi-Fi with real consumed data and 1-click internet pause.</p>
+          <h2 class="section-title">Connected Devices &amp; DNS Threat Defense</h2>
+          <p class="section-desc">Real-time DNS threat telemetry, whole-home network kill-switch, and zero-install parental controls for paired devices.</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <button class="btn btn-secondary" id="openPairDeviceBtn" style="border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
@@ -634,7 +634,7 @@
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Whole Home Network (Router Master Switch)</h3>
-                <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 11px;">ALL 7 DEVICES</span>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 11px;">WHOLE HOME DHCP</span>
               </div>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-sub);">
                 Router DNS: <code style="color: #60a5fa;" id="routerDnsDisplay">142.93.19.40</code> | Public WAN IP: <strong id="routerWanDisplay" style="color: #38bdf8;">103.72.2.182</strong>
@@ -657,10 +657,10 @@
           <thead>
             <tr>
               <th>DEVICE / HARDWARE</th>
-              <th>MAC ADDRESS</th>
-              <th>DEVICE TYPE</th>
-              <th>REAL DATA CONSUMED</th>
-              <th>LIVE SPEED</th>
+              <th>CLIENT IDENTIFIER</th>
+              <th>DEVICE TYPE / PROTOCOL</th>
+              <th>TOTAL QUERIES</th>
+              <th>THREATS BLOCKED</th>
               <th>STATUS</th>
               <th style="text-align: right;">PARENTAL / ACCESS CONTROLS</th>
             </tr>

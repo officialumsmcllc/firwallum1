@@ -176,6 +176,12 @@
     const statActiveEl = document.getElementById('statActiveCount');
     if (statActiveEl) statActiveEl.textContent = `${data.active_devices || 0} Online`;
 
+    const statTotalQueriesEl = document.getElementById('statTotalQueries');
+    if (statTotalQueriesEl) statTotalQueriesEl.textContent = (data.total_queries || 0).toLocaleString();
+
+    const statBlockedThreatsEl = document.getElementById('statBlockedThreats');
+    if (statBlockedThreatsEl) statBlockedThreatsEl.textContent = (data.blocked_threats || 0).toLocaleString();
+
     const statDnsCount = document.getElementById('statDnsCount');
     if (statDnsCount) statDnsCount.textContent = `${(data.blocked_domains_count || 73658).toLocaleString()} threat domains blocked`;
 
@@ -365,21 +371,13 @@
         statusBadge = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3); font-size:10px;">🟢 SHIELDED</span>`;
       }
 
-      // Format Data Consumed
-      let dataUsedStr = '0 MB';
-      if (d.total_gb > 0) {
-        dataUsedStr = `<strong style="color: #38bdf8; font-size: 13px;">${d.total_gb} GB</strong>`;
-      } else if (d.total_mb > 0) {
-        dataUsedStr = `<strong style="color: #38bdf8; font-size: 13px;">${d.total_mb} MB</strong>`;
-      }
-
-      // Format Live Speed
-      let speedStr = '<span style="color:var(--text-sub); font-size:11px;">0 KB/s</span>';
-      if (d.speed_kbps > 100) {
-        speedStr = `<span class="badge" style="background:rgba(16,185,129,0.18); color:#34d399; font-weight:700; font-size:11px; border: 1px solid rgba(16,185,129,0.4);">⚡ ${d.speed_kbps} KB/s</span>`;
-      } else if (d.speed_kbps > 0) {
-        speedStr = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; font-weight:600; font-size:11px; border: 1px solid rgba(59,130,246,0.3);">⚡ ${d.speed_kbps} KB/s</span>`;
-      }
+      // Real DNS Queries & Threats Blocked
+      const totalQ = d.total_queries || 0;
+      const blockedQ = d.blocked_queries || 0;
+      const totalQStr = `<strong style="color: #38bdf8; font-size: 13px;">${totalQ.toLocaleString()}</strong> <span style="font-size: 11px; color: var(--text-sub);">queries</span>`;
+      const blockedQStr = (blockedQ > 0)
+        ? `<strong style="color: #f87171; font-size: 13px;">${blockedQ.toLocaleString()}</strong> <span style="font-size: 11px; color: #fca5a5;">blocked</span>`
+        : `<span style="color: var(--text-sub); font-size: 11px;">0 blocked</span>`;
 
       return `
         <tr style="${isPaused || isBlocked ? 'opacity: 0.75; background: rgba(0,0,0,0.2);' : ''}">
@@ -390,14 +388,14 @@
                 <div style="font-weight:600; color:${isBlocked ? '#f87171' : (isPaused ? '#fbbf24' : '#ffffff')}; font-size:13.5px;">
                   ${d.name || 'Wi-Fi Client'}
                 </div>
-                <div style="font-family:var(--font-mono); font-size:11px; color:#94a3b8;">${d.ip}</div>
+                <div style="font-family:var(--font-mono); font-size:11px; color:#94a3b8;">${d.display_ip || d.ip}</div>
               </div>
             </div>
           </td>
-          <td><code class="code-badge" style="font-size: 11px;">${d.mac || '--'}</code></td>
+          <td><code class="code-badge" style="font-size: 11px;">${d.mac || d.ip}</code></td>
           <td style="color:#cbd5e1; font-size:12px;">${d.type || 'Connected Device'}</td>
-          <td style="font-family:var(--font-mono);">${dataUsedStr}</td>
-          <td style="font-family:var(--font-mono);">${speedStr}</td>
+          <td style="font-family:var(--font-mono);">${totalQStr}</td>
+          <td style="font-family:var(--font-mono);">${blockedQStr}</td>
           <td>${statusBadge}</td>
           <td style="text-align: right;">
             <div style="display: inline-flex; gap: 6px; align-items: center;">
