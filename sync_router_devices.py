@@ -13,14 +13,16 @@ import os
 CLOUD_SYNC_URL = os.environ.get("CLOUD_SYNC_URL", "https://hub.officialum1.com/api/wifi-devices/sync")
 
 KNOWN_MAP = {
-    "48:4D:7E:E9:25:DD": {"name": "Host PC (Firewall Admin)", "type": "Core Server Laptop (LAN)"},
-    "E2:06:16:AA:1E:5F": {"name": "Infinix HOT 11 Play", "type": "Android Smartphone (Wi-Fi)"},
-    "1E:91:0C:0E:DB:42": {"name": "Infinix HOT 11 Play", "type": "Android Smartphone (Wi-Fi)"},
+    "48:4D:7E:A9:25:DD": {"name": "Host PC (DESKTOP-8J8L7CJ)", "type": "Admin Laptop (LAN2)"},
     "9A:23:8C:65:4D:D5": {"name": "Vivo V2109", "type": "Android Smartphone (Wi-Fi)"},
-    "38:BA:F8:84:F3:05": {"name": "Client PC Laptop (PC 02)", "type": "Windows Laptop (Wi-Fi)"},
-    "D8:FC:92:58:8B:12": {"name": "Wireless Device (lwp0)", "type": "Wi-Fi Client"},
-    "08:CC:81:18:C9:98": {"name": "Ethernet Device (Port 1)", "type": "LAN Client"},
-    "5E:E4:9F:53:4E:49": {"name": "Mobile Device", "type": "Smartphone (Wi-Fi)"},
+    "5C:C4:9F:53:4C:49": {"name": "Vivo V2250", "type": "Android Smartphone (Wi-Fi)"},
+    "1E:81:0C:0E:DB:42": {"name": "Vivo V2118", "type": "Android Smartphone (Wi-Fi)"},
+    "38:BA:F8:84:F3:05": {"name": "Client PC (DESKTOP-01N450P)", "type": "Windows Laptop (Wi-Fi)"},
+    "28:02:84:FE:41:E4": {"name": "Sohail-ali-A56", "type": "Android Smartphone (Wi-Fi)"},
+    "D8:FC:92:58:8B:12": {"name": "Wireless Client (lvip0)", "type": "Wi-Fi Device"},
+    "08:CC:81:18:C9:96": {"name": "Ethernet Client (LAN1)", "type": "LAN Cable Device"},
+    "CC:73:15:82:7D:96": {"name": "Smart Wi-Fi Device", "type": "Wi-Fi Client"},
+    "E2:06:16:AA:1E:5F": {"name": "Infinix HOT 11 Play", "type": "Android Smartphone (Wi-Fi)"},
 }
 
 def trigger_arp_sweep(subnet="192.168.100."):
@@ -64,13 +66,13 @@ def scan_and_sync():
         # Windows 'arp -a' does not list the local host machine itself.
         # Explicitly add Host PC (192.168.100.158) so all 7 router devices are accounted for.
         host_ip = "192.168.100.158"
-        host_mac = "48:4D:7E:E9:25:DD"
+        host_mac = "48:4D:7E:A9:25:DD"
         if not any(d["ip"] == host_ip for d in devices):
             devices.insert(0, {
                 "ip": host_ip,
                 "mac": host_mac,
-                "name": "Host PC (Firewall Admin)",
-                "type": "Core Server Laptop (LAN)"
+                "name": "Host PC (DESKTOP-8J8L7CJ)",
+                "type": "Admin Laptop (LAN2)"
             })
 
         if devices:

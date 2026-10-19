@@ -284,17 +284,20 @@ class HubStore:
                     (8110, "PC 10 (Team Member)")
                 ]
                 conn.executemany("INSERT INTO ports (port, device_name) VALUES (?, ?);", default_ports)
-            # Clean up all legacy fake LAN IPs (192.168.100.x cannot be individually isolated under NAT)
-            conn.execute("DELETE FROM wifi_devices WHERE ip LIKE '192.168.100.%';")
-            fake_dummy_ips = ("192.168.100.15", "192.168.100.18", "192.168.100.22", "192.168.100.31", "192.168.100.2", "192.168.100.45", "192.168.100.67", "192.168.100.158", "192.168.100.95", "192.168.100.98", "192.168.100.100", "192.168.100.137", "192.168.100.61")
-            placeholders = ",".join("?" for _ in fake_dummy_ips)
-            conn.execute(f"DELETE FROM wifi_devices WHERE ip IN ({placeholders});", fake_dummy_ips)
+            # Clean up old placeholder tags
+            conn.execute("DELETE FROM wifi_devices WHERE ip LIKE '%#%';")
 
-            # Seed real Home Wi-Fi Router Gateway and verified paired devices
+            # Seed real Home Wi-Fi Router Gateway and verified paired devices from Huawei HG8245C
             real_router_devices = [
-                ("103.72.2.182", "cfg_officialum1", "", "Home Wi-Fi Router (Whole Network)", "Router Gateway (DHCP DNS)", "SHIELDED", 8100, 0, 0.0, time.time()),
-                ("103.72.2.182#Vivo-V2109", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (DoH / Private DNS)", "SHIELDED", 8104, 0, 0.0, time.time()),
-                ("103.72.2.182#windows-pc", "cfg_officialum1", "38:BA:F8:84:F3:05", "Windows PC / Laptop", "Windows Client (DoH / Secure DNS)", "SHIELDED", 8102, 0, 0.0, time.time()),
+                ("103.72.2.182", "cfg_officialum1", "", "Home Wi-Fi Router (Gateway)", "Router Gateway (DHCP DNS)", "SHIELDED", 8100, 0, 0.0, time.time()),
+                ("192.168.100.95", "cfg_officialum1", "9A:23:8C:65:4D:D5", "Vivo V2109", "Android Smartphone (Wi-Fi)", "SHIELDED", 8104, 0, 0.0, time.time()),
+                ("192.168.100.100", "cfg_officialum1", "5C:C4:9F:53:4C:49", "Vivo V2250", "Android Smartphone (Wi-Fi)", "SHIELDED", 8105, 0, 0.0, time.time()),
+                ("192.168.100.98", "cfg_officialum1", "1E:81:0C:0E:DB:42", "Vivo V2118", "Android Smartphone (Wi-Fi)", "SHIELDED", 8106, 0, 0.0, time.time()),
+                ("192.168.100.137", "cfg_officialum1", "38:BA:F8:84:F3:05", "Client PC (DESKTOP-01N450P)", "Windows Laptop (Wi-Fi)", "SHIELDED", 8102, 0, 0.0, time.time()),
+                ("192.168.100.158", "cfg_officialum1", "48:4D:7E:A9:25:DD", "Host PC (DESKTOP-8J8L7CJ)", "Admin Laptop (LAN2)", "SHIELDED", 8101, 0, 0.0, time.time()),
+                ("192.168.100.143", "cfg_officialum1", "28:02:84:FE:41:E4", "Sohail-ali-A56", "Android Smartphone (Wi-Fi)", "SHIELDED", 8107, 0, 0.0, time.time()),
+                ("192.168.100.139", "cfg_officialum1", "D8:FC:92:58:8B:12", "Wireless Client (lvip0)", "Wi-Fi Client (SSID1)", "SHIELDED", 8108, 0, 0.0, time.time()),
+                ("192.168.100.81", "cfg_officialum1", "08:CC:81:18:C9:96", "Ethernet Client (LAN1)", "LAN Cable Client", "SHIELDED", 8109, 0, 0.0, time.time()),
             ]
             for dev in real_router_devices:
                 conn.execute("""
@@ -302,6 +305,7 @@ class HubStore:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(ip) DO UPDATE SET
                     name = excluded.name,
+                    mac = excluded.mac,
                     type = excluded.type;
                 """, dev)
 
