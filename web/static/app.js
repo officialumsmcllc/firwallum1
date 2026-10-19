@@ -388,11 +388,13 @@
                 <div style="font-weight:600; color:${isBlocked ? '#f87171' : (isPaused ? '#fbbf24' : '#ffffff')}; font-size:13.5px;">
                   ${d.name || 'Wi-Fi Client'}
                 </div>
-                <div style="font-family:var(--font-mono); font-size:11px; color:#94a3b8;">${d.display_ip || d.ip}</div>
+                <div style="font-family:var(--font-mono); font-size:11px; color:#94a3b8; display:flex; gap:6px; align-items:center;">
+                  <span>${d.display_ip || d.ip}</span>
+                  ${d.mac ? `<code class="code-badge" style="font-size: 9.5px; padding: 1px 5px;">${d.mac}</code>` : ''}
+                </div>
               </div>
             </div>
           </td>
-          <td><code class="code-badge" style="font-size: 11px;">${d.mac || d.ip}</code></td>
           <td style="color:#cbd5e1; font-size:12px;">${d.type || 'Connected Device'}</td>
           <td style="font-family:var(--font-mono);">${totalQStr}</td>
           <td style="font-family:var(--font-mono);">${blockedQStr}</td>
