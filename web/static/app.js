@@ -161,6 +161,17 @@
     if (configNameEl && data.tenant_name) configNameEl.textContent = data.tenant_name;
     if (configIdEl) configIdEl.textContent = currentConfigId;
 
+    // Update personal DoH URL chip and browser setup card with user's specific config_id
+    const personalDohUrl = (currentConfigId && currentConfigId !== 'default')
+      ? `https://hub.officialum1.com/dns-query/${currentConfigId}`
+      : 'https://hub.officialum1.com/dns-query';
+    const dohValEl = document.getElementById('dohEndpointVal');
+    const dohCopyBtn = document.getElementById('dohEndpointCopy');
+    const browserDohEl = document.getElementById('browserDohUrl');
+    if (dohValEl) dohValEl.textContent = personalDohUrl;
+    if (dohCopyBtn) dohCopyBtn.setAttribute('data-copy', personalDohUrl);
+    if (browserDohEl) browserDohEl.textContent = personalDohUrl;
+
     // Top Metrics
     const statActiveEl = document.getElementById('statActiveCount');
     if (statActiveEl) statActiveEl.textContent = `${data.active_devices || 0} Online`;

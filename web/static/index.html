@@ -350,8 +350,8 @@
           </div>
           <div class="endpoint-chip">
             <span class="chip-label">DNS-OVER-HTTPS (DoH)</span>
-            <span class="chip-val">https://hub.officialum1.com/dns-query</span>
-            <button class="chip-copy-btn" data-copy="https://hub.officialum1.com/dns-query" title="Copy">📋</button>
+            <span class="chip-val" id="dohEndpointVal">https://hub.officialum1.com/dns-query</span>
+            <button class="chip-copy-btn" id="dohEndpointCopy" data-copy="https://hub.officialum1.com/dns-query" title="Copy">📋</button>
           </div>
           <div class="endpoint-chip">
             <span class="chip-label">PRIVATE DNS (TLS HOSTNAME)</span>
@@ -550,7 +550,7 @@
               <div class="setup-step-text">
                 Enable <strong>Use secure DNS</strong> ➔ Choose <strong>With: Custom</strong> ➔ Enter:
                 <div style="margin-top: 6px;">
-                  <code>https://hub.officialum1.com/dns-query</code>
+                  <code id="browserDohUrl">https://hub.officialum1.com/dns-query</code>
                 </div>
               </div>
             </div>
