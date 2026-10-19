@@ -197,6 +197,8 @@ class HubStore:
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_time ON dns_logs(timestamp DESC);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_cfg ON dns_logs(config_id, timestamp DESC);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_dev ON dns_logs(config_id, client_ip, status);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_dns_logs_devname ON dns_logs(config_id, device_name, status);")
 
             # 10. SaaS Customer Accounts & Authentication Table
             conn.execute("""
